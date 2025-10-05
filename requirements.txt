@@ -6,3 +6,6 @@ psycopg2-binary
 numpy
 torch
 python-dotenv
+sqlalchemy
+pgvector
+psycopg2
