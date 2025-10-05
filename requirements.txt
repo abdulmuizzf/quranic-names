@@ -9,3 +9,4 @@ python-dotenv
 sqlalchemy
 pgvector
 psycopg2
+alembic

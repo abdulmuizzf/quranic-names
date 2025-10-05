@@ -10,7 +10,7 @@ from app import query, schema
 from app.database import get_db
 
 # --- Configuration ---
-MODEL_NAME = "BAAI/bge-small-en-v1.5"
+MODEL_NAME = "thenlper/gte-large"
 
 # --- Global Model Cache ---
 # We store the model in a dictionary to be loaded during app startup
