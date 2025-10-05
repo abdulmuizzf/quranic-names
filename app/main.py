@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from typing import List
 from sentence_transformers import SentenceTransformer
@@ -44,6 +45,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --- Mount the static directory to serve frontend files ---
+app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
 
 # --- API Endpoint ---
