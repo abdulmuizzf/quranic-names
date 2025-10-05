@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+pandas
+sentence-transformers
+psycopg2-binary
+numpy
+torch
+python-dotenv
