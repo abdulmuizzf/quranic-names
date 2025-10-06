@@ -52,9 +52,16 @@ api_router = APIRouter(prefix="/api")
 
 # --- API Endpoints ---
 @api_router.get("/search", response_model=List[schema.SearchResult])
-def search_words(q: str, db: Session = Depends(get_db)):
+def search_words(
+    q: str, 
+    limit: int = 10,
+    db: Session = Depends(get_db)
+):
     if not q.strip():
         raise HTTPException(status_code=400, detail="Query parameter 'q' cannot be empty.")
+    
+    if limit < 1 or limit > 50:
+        raise HTTPException(status_code=400, detail="Limit must be between 1 and 50.")
 
     model = model_cache.get("sentence_transformer")
     if not model:
@@ -63,19 +70,11 @@ def search_words(q: str, db: Session = Depends(get_db)):
     # 1. Generate embedding for the query
     query_embedding = model.encode(q)
 
-    # 2. Find the most similar words from the database
-    similar_words = query.get_similar_words(db, query_embedding=query_embedding, limit=10)
+    # 2. Find the most similar words and their sequences from the database
+    search_results = query.get_similar_words(db, query_embedding=query_embedding, limit=limit)
 
-    # 3. Post-process to get unique sequences and format the output
-    unique_sequences = {}
-    for word in similar_words:
-        # If we haven't seen this sequence before, add it to our results
-        if word.sequence not in unique_sequences:
-            unique_sequences[word.sequence] = schema.SearchResult(
-                sequence=word.sequence, category=word.category, letter=word.letter, sample_meaning=word.english_text
-            )
-
-    return list(unique_sequences.values())
+    # No need for post-processing as the query module now handles grouping and sorting
+    return search_results
 
 
 # A root endpoint for health checks

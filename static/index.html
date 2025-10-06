@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Naskh+Arabic&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="container">
@@ -16,9 +16,20 @@
             <p>Enter an English word or phrase to find semantically similar Quranic root words.</p>
         </header>
         <main>
-            <div class="search-box">
-                <input type="text" id="searchInput" placeholder="e.g., justice, mercy, creation...">
-                <button id="searchButton">Search</button>
+            <div class="search-controls">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="e.g., justice, mercy, creation...">
+                    <button id="searchButton">Search</button>
+                </div>
+                <div class="search-options">
+                    <label for="resultLimit">Show results:</label>
+                    <select id="resultLimit">
+                        <option value="5">5</option>
+                        <option value="10" selected>10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                    </select>
+                </div>
             </div>
             <div id="resultsContainer">
                 <!-- Search results will be dynamically inserted here -->
