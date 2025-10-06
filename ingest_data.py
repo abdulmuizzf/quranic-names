@@ -138,15 +138,35 @@ def ingest_embeddings(conn, df):
         print("   Generating embeddings (this may take a while)...")
         embeddings = model.encode(words_to_embed_df["english_text"].tolist(), show_progress_bar=True)
 
-        # Insert new embeddings
+        # Insert new embeddings in batches
         print("   Inserting new embeddings into the database...")
-        for i, row in words_to_embed_df.iterrows():
-            word_id = all_words_map[row["verse_reference"]]
-            embedding_vector = np.array(embeddings[i])
-            cur.execute(
-                "INSERT INTO embeddings (word_id, model_id, embedding) VALUES (%s, %s, %s)",
-                (word_id, model_id, embedding_vector),
-            )
+        batch_size = 100
+        total_processed = 0
+        
+        try:
+            for i in range(0, len(embeddings), batch_size):
+                batch_embeddings = embeddings[i:i + batch_size]
+                batch_rows = list(words_to_embed_df.itertuples())[i:i + batch_size]
+                
+                for embedding_vector, row in zip(batch_embeddings, batch_rows):
+                    word_id = all_words_map[row.verse_reference]
+                    embedding_vector = embedding_vector.astype(np.float32)  # Convert to float32
+                    cur.execute(
+                        """
+                        INSERT INTO embeddings (word_id, model_id, embedding) 
+                        VALUES (%s, %s, %s::vector) 
+                        ON CONFLICT (word_id, model_id) DO NOTHING
+                        """,
+                        (word_id, model_id, embedding_vector.tolist()),  # Convert to Python list
+                    )
+                
+                total_processed += len(batch_embeddings)
+                conn.commit()  # Commit after each batch
+                print(f"   Progress: {total_processed}/{len(embeddings)} embeddings inserted")
+        except Exception as e:
+            print(f"\n❌ Error during embedding insertion at position {total_processed}: {str(e)}")
+            conn.rollback()
+            raise
     conn.commit()
     print(f"✅ Successfully ingested {len(words_to_embed_df)} new embeddings.")
 
