@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadingIndicator = document.getElementById('loadingIndicator');
     const errorMessage = document.getElementById('error-message');
 
-    const API_URL = 'http://127.0.0.1:8000';
+    const API_URL = 'http://127.0.0.1:8000/api';
 
     const performSearch = async () => {
         const query = searchInput.value.trim();

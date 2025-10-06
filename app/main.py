@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
@@ -46,12 +46,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- Mount the static directory to serve frontend files ---
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
+# --- Create API Router ---
+from fastapi import APIRouter
+api_router = APIRouter(prefix="/api")
 
-
-# --- API Endpoint ---
-@app.get("/search", response_model=List[schema.SearchResult])
+# --- API Endpoints ---
+@api_router.get("/search", response_model=List[schema.SearchResult])
 def search_words(q: str, db: Session = Depends(get_db)):
     if not q.strip():
         raise HTTPException(status_code=400, detail="Query parameter 'q' cannot be empty.")
@@ -79,6 +79,10 @@ def search_words(q: str, db: Session = Depends(get_db)):
 
 
 # A root endpoint for health checks
-@app.get("/")
+@api_router.get("/")
 def read_root():
     return {"status": "API is running"}
+
+# Include API router and mount static files
+app.include_router(api_router)
+app.mount("/", StaticFiles(directory="static", html=True), name="static")
