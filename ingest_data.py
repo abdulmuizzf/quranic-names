@@ -1,174 +1,170 @@
+import os
 import pandas as pd
-import numpy as np
 from sentence_transformers import SentenceTransformer
-from your_database_module import get_db_connection  # Adjust the import based on your project structure
+import psycopg2
+import numpy as np
+from dotenv import load_dotenv
 
-# Define constants
-MODEL_NAME = 'all-MiniLM-L6-v2'  # Example model name, adjust as needed
-VECTOR_DIMENSION = 384  # This should match the dimension of the embeddings from your model
+# --- Load Environment Variables ---
+load_dotenv()
 
-def setup_schema(conn):
-    """Creates the normalized table structure and index if they don't exist."""
-    with conn.cursor() as cur:
-        print("--- Ensuring database schema is ready ---")
+DB_NAME = os.getenv("DB_NAME")
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_HOST = os.getenv("DB_HOST")
+DB_PORT = os.getenv("DB_PORT")
 
-        # Check for tables and create if they don't exist
-        cur.execute("CREATE TABLE IF NOT EXISTS categories (...);") # Simplified for brevity
-        cur.execute("CREATE TABLE IF NOT EXISTS letters (...);")
-        cur.execute("CREATE TABLE IF NOT EXISTS sequences (...);")
-        cur.execute("CREATE TABLE IF NOT EXISTS words (...);")
-
-        print("   Creating 'categories' table if not exists...")
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS categories (
-                id SERIAL PRIMARY KEY,
-                name TEXT UNIQUE NOT NULL
-            );
-        """)
-
-        print("   Creating 'letters' table if not exists...")
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS letters (
-                id SERIAL PRIMARY KEY,
-                letter TEXT UNIQUE NOT NULL
-            );
-        """)
-
-        print("   Creating 'sequences' table if not exists...")
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS sequences (
-                id SERIAL PRIMARY KEY,
-                sequence TEXT NOT NULL,
-                morphology_url TEXT,
-                letter_id INTEGER REFERENCES letters(id),
-                category_id INTEGER REFERENCES categories(id),
-                UNIQUE (sequence, letter_id)
-            );
-        """)
-
-        print("   Creating 'words' table if not exists...")
-        cur.execute(f"""
-            CREATE TABLE IF NOT EXISTS words (
-                id SERIAL PRIMARY KEY,
-                arabic_word TEXT,
-                transliteration TEXT,
-                english_text TEXT,
-                verse_reference TEXT UNIQUE,
-                quran_verse TEXT,
-                sequence_id INTEGER REFERENCES sequences(id),
-                embedding VECTOR({VECTOR_DIMENSION})
-            );
-        """)
-        
-        # Create index if it doesn't exist
-        print("   Creating vector index if not exists...")
-        cur.execute("""
-            CREATE INDEX IF NOT EXISTS hnsw_index ON words 
-            USING hnsw (embedding vector_cosine_ops) WITH (m = 16, ef_construction = 64);
-        """)
-
-    conn.commit()
-    print("✅ Schema is ready.")
+# --- Model Configuration ---
+MODEL_NAME = "thenlper/gte-large"
+VECTOR_DIMENSION = 1024
 
 
-def ingest_data(conn):
-    """Reads CSV, finds new data, generates embeddings, and inserts it."""
-    print("\n--- Starting Data Ingestion ---")
-    
-    # Step 1: Get existing verse references from the DB
-    print("➡️ Step 1: Checking for already ingested data...")
-    with conn.cursor() as cur:
-        cur.execute("SELECT verse_reference FROM words;")
-        existing_verses = {row[0] for row in cur.fetchall()}
-    print(f"   Found {len(existing_verses)} existing words in the database.")
-
-    # Step 2: Read CSV and filter for new data
-    print("➡️ Step 2: Reading CSV data...")
+def get_db_connection():
+    """Establishes and returns a database connection."""
     try:
-        df = pd.read_csv('quran_words.csv').where(pd.notnull, None)
-        df.dropna(subset=['english_text', 'sequence', 'letter', 'category', 'verse_reference'], inplace=True)
-        
-        # Filter out rows that are already in the database
-        new_data_df = df[~df['verse_reference'].isin(existing_verses)]
-        
-        if new_data_df.empty:
-            print("   No new data to ingest. Database is already up-to-date.")
-            print("--- Ingestion Complete ---")
-            return
-            
-        print(f"   Found {len(new_data_df)} new rows to ingest.")
+        conn = psycopg2.connect(dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD, host=DB_HOST, port=DB_PORT)
+        return conn
+    except psycopg2.OperationalError as e:
+        print(f"❌ Could not connect to the database: {e}")
+        return None
 
-    except FileNotFoundError:
-        print("❌ Error: quran_words.csv not found.")
-        return
 
-    # Step 3: Generate embeddings for new data only
-    print(f"➡️ Step 3: Loading sentence transformer model '{MODEL_NAME}'...")
-    model = SentenceTransformer(MODEL_NAME)
-
-    print("➡️ Step 4: Generating embeddings for new data...")
-    embeddings = model.encode(new_data_df['english_text'].tolist(), show_progress_bar=True)
-    new_data_df['embedding'] = list(embeddings)
-
-    # Step 5: Ingest the new data
-    print("➡️ Step 5: Populating database with new data...")
+def ingest_core_data(conn, df):
+    """
+    Ingests the core textual data (categories, letters, sequences, words)
+    into the database, avoiding duplicates.
+    """
+    print("➡️ Step 1: Ingesting core data (words, sequences, etc.)...")
     with conn.cursor() as cur:
+        # Get all existing verse references to avoid re-inserting words
+        cur.execute("SELECT verse_reference FROM words")
+        existing_verses = {row[0] for row in cur.fetchall()}
+
+        new_words_df = df[~df["verse_reference"].isin(existing_verses)]
+
+        if new_words_df.empty:
+            print("   Core data is already up-to-date.")
+            return
+
+        print(f"   Found {len(new_words_df)} new words to add.")
+
         # Use dictionaries to cache foreign keys and avoid repeated lookups
-        letter_ids = {}
-        category_ids = {}
-        sequence_ids = {}
+        letter_ids, category_ids, sequence_ids = {}, {}, {}
 
-        for _, row in new_data_df.iterrows():
-            # --- Categories ---
-            category_name = row['category']
+        for _, row in new_words_df.iterrows():
+            # Categories
+            category_name = row["category"]
             if category_name not in category_ids:
-                cur.execute("INSERT INTO categories (name) VALUES (%s) ON CONFLICT (name) DO UPDATE SET name=EXCLUDED.name RETURNING id;", (category_name,))
+                cur.execute(
+                    "INSERT INTO categories (name) VALUES (%s) ON CONFLICT (name) DO UPDATE SET name=EXCLUDED.name RETURNING id;",
+                    (category_name,),
+                )
                 category_ids[category_name] = cur.fetchone()[0]
-            category_id = category_ids[category_name]
 
-            # --- Letters ---
-            letter_char = row['letter']
+            # Letters
+            letter_char = row["letter"]
             if letter_char not in letter_ids:
-                cur.execute("INSERT INTO letters (letter) VALUES (%s) ON CONFLICT (letter) DO UPDATE SET letter=EXCLUDED.letter RETURNING id;", (letter_char,))
+                cur.execute(
+                    "INSERT INTO letters (letter) VALUES (%s) ON CONFLICT (letter) DO UPDATE SET letter=EXCLUDED.letter RETURNING id;",
+                    (letter_char,),
+                )
                 letter_ids[letter_char] = cur.fetchone()[0]
-            letter_id = letter_ids[letter_char]
 
-            # --- Sequences ---
-            sequence_text = row['sequence']
-            sequence_key = (sequence_text, letter_id)
+            # Sequences
+            sequence_text = row["sequence"]
+            sequence_key = (sequence_text, letter_ids[letter_char])
             if sequence_key not in sequence_ids:
                 cur.execute(
-                    """
-                    INSERT INTO sequences (sequence, morphology_url, letter_id, category_id)
-                    VALUES (%s, %s, %s, %s) ON CONFLICT (sequence, letter_id) DO UPDATE SET sequence=EXCLUDED.sequence RETURNING id;
-                    """,
-                    (sequence_text, row['morphology_url'], letter_id, category_id)
+                    "INSERT INTO sequences (sequence, morphology_url, letter_id, category_id) VALUES (%s, %s, %s, %s) ON CONFLICT (sequence, letter_id) DO UPDATE SET sequence=EXCLUDED.sequence RETURNING id;",
+                    (sequence_text, row["morphology_url"], letter_ids[letter_char], category_ids[category_name]),
                 )
                 sequence_ids[sequence_key] = cur.fetchone()[0]
-            sequence_id = sequence_ids[sequence_key]
 
-            # --- Words ---
+            # Words
             cur.execute(
-                """
-                INSERT INTO words (
-                    arabic_word, transliteration, english_text, verse_reference,
-                    quran_verse, sequence_id, embedding
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s) ON CONFLICT (verse_reference) DO NOTHING;
-                """,
+                "INSERT INTO words (arabic_word, transliteration, english_text, verse_reference, quran_verse, sequence_id) VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT (verse_reference) DO NOTHING;",
                 (
-                    row['arabic_word'], row['transliteration'], row['english_text'],
-                    row['verse_reference'], row['quran_verse'], sequence_id,
-                    np.array(row['embedding'])
-                )
+                    row["arabic_word"],
+                    row["transliteration"],
+                    row["english_text"],
+                    row["verse_reference"],
+                    row["quran_verse"],
+                    sequence_ids[sequence_key],
+                ),
             )
     conn.commit()
-    print(f"✅ Successfully ingested {len(new_data_df)} new words.")
-    print("--- Ingestion Complete ---")
+    print(f"✅ Successfully ingested {len(new_words_df)} new words.")
+
+
+def ingest_embeddings(conn, df):
+    """
+    Generates and ingests embeddings for words that don't have them for the current model.
+    """
+    print("\n➡️ Step 2: Ingesting embeddings...")
+    with conn.cursor() as cur:
+        # Get or create the embedding model entry
+        cur.execute(
+            "INSERT INTO embedding_models (name, dimension) VALUES (%s, %s) ON CONFLICT (name) DO UPDATE SET name=EXCLUDED.name RETURNING id;",
+            (MODEL_NAME, VECTOR_DIMENSION),
+        )
+        model_id = cur.fetchone()[0]
+        print(f"   Using model '{MODEL_NAME}' (ID: {model_id}).")
+
+        # Find all word IDs that already have an embedding for this model
+        cur.execute("SELECT word_id FROM embeddings WHERE model_id = %s", (model_id,))
+        words_with_embedding = {row[0] for row in cur.fetchall()}
+        print(f"   Found {len(words_with_embedding)} words that already have an embedding for this model.")
+
+        # Get all words from the DB, mapping verse_reference to word_id
+        cur.execute("SELECT id, verse_reference FROM words")
+        all_words_map = {row[1]: row[0] for row in cur.fetchall()}
+
+        # Filter the dataframe to find words that need an embedding
+        words_to_embed_df = df[df["verse_reference"].isin(all_words_map.keys())]
+        # Further filter out words that already have an embedding for this model
+        words_to_embed_df = words_to_embed_df[
+            ~words_to_embed_df["verse_reference"].map(all_words_map).isin(words_with_embedding)
+        ]
+
+        if words_to_embed_df.empty:
+            print("   All words are already embedded for this model.")
+            return
+
+        print(f"   Found {len(words_to_embed_df)} words that need a new embedding.")
+
+        # Generate embeddings for the filtered list
+        print("   Loading sentence transformer model...")
+        model = SentenceTransformer(MODEL_NAME)
+        print("   Generating embeddings (this may take a while)...")
+        embeddings = model.encode(words_to_embed_df["english_text"].tolist(), show_progress_bar=True)
+
+        # Insert new embeddings
+        print("   Inserting new embeddings into the database...")
+        for i, row in words_to_embed_df.iterrows():
+            word_id = all_words_map[row["verse_reference"]]
+            embedding_vector = np.array(embeddings[i])
+            cur.execute(
+                "INSERT INTO embeddings (word_id, model_id, embedding) VALUES (%s, %s, %s)",
+                (word_id, model_id, embedding_vector),
+            )
+    conn.commit()
+    print(f"✅ Successfully ingested {len(words_to_embed_df)} new embeddings.")
 
 
 if __name__ == "__main__":
-    conn = get_db_connection()
-    if conn:
-        setup_schema(conn)
-        ingest_data(conn)
-        conn.close()
+    print("--- Starting Data Ingestion Script ---")
+
+    try:
+        main_df = pd.read_csv("data/quran_words.csv").where(pd.notnull, None)
+        # Perform a single, upfront drop of rows with critical missing data
+        main_df.dropna(subset=["english_text", "sequence", "letter", "category", "verse_reference"], inplace=True)
+    except FileNotFoundError:
+        print("❌ Error: 'data/quran_words.csv' not found. Please run the scraper first.")
+        exit()
+
+    connection = get_db_connection()
+    if connection:
+        ingest_core_data(connection, main_df)
+        ingest_embeddings(connection, main_df)
+        connection.close()
+        print("\n--- Ingestion Complete ---")

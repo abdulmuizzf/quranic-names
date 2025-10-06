@@ -1,7 +1,9 @@
 fastapi
 uvicorn[standard]
 pandas
-sentence-transformers
+# Pinning versions to ensure compatibility and prevent import errors
+sentence-transformers==2.7.0
+transformers==4.41.2
 psycopg2-binary
 numpy
 torch
