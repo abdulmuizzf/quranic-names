@@ -1,3 +1,10 @@
+// Function to generate correct morphology URL from verse reference
+const generateMorphologyUrl = (verseRef) => {
+    // Extract chapter and verse numbers from the reference (e.g., "2:255" -> [2, 255])
+    const [chapter, verse] = verseRef.split(':').map(num => parseInt(num));
+    return `https://corpus.quran.com/wordbyword.jsp?chapter=${chapter}&verse=${verse}`;
+};
+
 document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('searchInput');
     const searchButton = document.getElementById('searchButton');
@@ -10,6 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const performSearch = async () => {
         const query = searchInput.value.trim();
         const limit = document.getElementById('resultLimit').value;
+        const minSimilarity = parseFloat(document.getElementById('minSimilarity').value) || 0;
 
         if (!query) {
             resultsContainer.innerHTML = '';
@@ -22,7 +30,10 @@ document.addEventListener('DOMContentLoaded', () => {
         errorMessage.classList.add('hidden');
 
         try {
-            const response = await fetch(`${API_URL}/search?q=${encodeURIComponent(query)}&limit=${limit}`);
+            const response = await fetch(
+                `${API_URL}/search?q=${encodeURIComponent(query)}&limit=${limit}&min_similarity=${minSimilarity}`
+            );
+            
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.detail || `HTTP error! Status: ${response.status}`);
@@ -59,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td>${word.transliteration}</td>
                     <td>${word.english_text}</td>
                     <td>
-                        <a href="${word.morphology_url}" target="_blank" title="View morphology">
+                        <a href="${generateMorphologyUrl(word.verse_reference)}" target="_blank" title="View morphology">
                             ${word.verse_reference}
                         </a>
                     </td>
@@ -111,4 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
             performSearch();
         }
     });
+
+    // Add event listener for minimum similarity changes
+    document.getElementById('minSimilarity').addEventListener('change', performSearch);
 });

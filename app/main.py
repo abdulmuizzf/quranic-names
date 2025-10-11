@@ -55,6 +55,7 @@ api_router = APIRouter(prefix="/api")
 def search_words(
     q: str, 
     limit: int = 10,
+    min_similarity: float = 0,
     db: Session = Depends(get_db)
 ):
     if not q.strip():
@@ -71,7 +72,12 @@ def search_words(
     query_embedding = model.encode(q)
 
     # 2. Find the most similar words and their sequences from the database
-    search_results = query.get_similar_words(db, query_embedding=query_embedding, limit=limit)
+    search_results = query.get_similar_words(
+        db,
+        query_embedding=query_embedding,
+        limit=limit,
+        min_similarity=min_similarity
+    )
 
     # No need for post-processing as the query module now handles grouping and sorting
     return search_results

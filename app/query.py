@@ -3,56 +3,46 @@ import numpy as np
 from app import models
 
 
-def get_similar_words(db: Session, query_embedding: np.ndarray, limit: int = 10):
-    """
-    Queries the database to find the most similar words based on cosine distance.
-    Returns words grouped by sequence with similarity scores and all occurrences.
-    """
-    # Get all similar words with their distances
-    word_distances = (
-        db.query(
-            models.Word,
-            models.Sequence.sequence,
-            models.Category.name.label("category"),
-            models.Letter.letter,
-            models.Embedding.embedding.cosine_distance(query_embedding.astype('float32')).label('distance')
-        )
-        .join(models.Embedding, models.Word.id == models.Embedding.word_id)
-        .join(models.Sequence, models.Word.sequence_id == models.Sequence.id)
-        .join(models.Category, models.Sequence.category_id == models.Category.id)
-        .join(models.Letter, models.Sequence.letter_id == models.Letter.id)
-        .order_by('distance')
-        .all()
-    )
+from sqlalchemy import text
 
-    # Get the top N most similar sequences based on their best matching word
-    seen_sequences = set()
-    filtered_results = []
+def get_similar_words(db: Session, query_embedding: np.ndarray, limit: int = 10, min_similarity: float = 0):
+    """
+    Find root word sequences with embeddings similar to the query.
+    Returns list of dictionaries with sequence info and word occurrences.
+    """
+    # Convert numpy array to list for database query
+    query_vector = query_embedding.tolist()
+
+    # Convert minimum similarity percentage to maximum distance
+    # similarity = 1 - distance, so max_distance = 1 - min_similarity/100
+    max_distance = 1 - (min_similarity / 100)
+
+    # Query using pgvector's cosine similarity operator (<->)
+    sql = text("""
+        SELECT 
+            w.*,
+            seq.sequence,
+            cat.name as category,
+            l.letter,
+            (e.embedding <=> :query_vector::vector) as distance
+        FROM words w
+        JOIN sequences seq ON w.sequence_id = seq.id
+        JOIN letters l ON seq.letter_id = l.id
+        JOIN categories cat ON seq.category_id = cat.id
+        JOIN embeddings e ON e.word_id = w.id
+        WHERE distance <= :max_distance
+        ORDER BY distance ASC
+        LIMIT :limit
+    """)
     
-    for result in word_distances:
-        if len(seen_sequences) >= limit:
-            break
-        if result[1] not in seen_sequences:  # result[1] is sequence
-            seen_sequences.add(result[1])
-            filtered_results.append(result)
-    
-    # Now get all words for these sequences
-    results = (
-        db.query(
-            models.Word,
-            models.Sequence.sequence,
-            models.Category.name.label("category"),
-            models.Letter.letter,
-            models.Embedding.embedding.cosine_distance(query_embedding.astype('float32')).label('distance')
-        )
-        .join(models.Embedding, models.Word.id == models.Embedding.word_id)
-        .join(models.Sequence, models.Word.sequence_id == models.Sequence.id)
-        .join(models.Category, models.Sequence.category_id == models.Category.id)
-        .join(models.Letter, models.Sequence.letter_id == models.Letter.id)
-        .filter(models.Sequence.sequence.in_([r[1] for r in filtered_results]))
-        .order_by('distance')
-        .all()
-    )
+    results = db.execute(
+        sql,
+        {
+            "query_vector": query_vector,
+            "max_distance": max_distance,
+            "limit": limit
+        }
+    ).fetchall()
 
     # Group results by sequence
     sequence_groups = {}

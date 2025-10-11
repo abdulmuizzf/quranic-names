@@ -380,20 +380,6 @@ class Person {
 ]
 </functions>
 
-<context>
-The current date is April 21, 2025.
-My current OS is: Windows
-I am working in a workspace with the following folders:
-- c:\Users\Lucas\OneDrive\Escritorio\copilot 
-I am working in a workspace that has the following structure:
-```
-example.txt
-raw_complete_instructions.txt
-raw_instructions.txt
-```
-This view of the workspace structure may be truncated. You can use tools to collect more context if needed.
-</context>
-
 <reminder>
 When using the insert_edit_into_file tool, avoid repeating existing code, instead use a line comment with `...existing code...` to represent regions of unchanged code.
 </reminder>

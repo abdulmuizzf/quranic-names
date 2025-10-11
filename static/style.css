@@ -68,11 +68,16 @@ header p {
     color: #666;
 }
 
-.search-options select {
+.search-options select,
+.search-options input[type="number"] {
     padding: 0.25rem 0.5rem;
     border: 1px solid var(--card-border);
     border-radius: 4px;
     font-size: 0.9rem;
+}
+
+.search-options input[type="number"] {
+    width: 70px;
 }
 
 #searchInput {
