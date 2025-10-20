@@ -80,8 +80,6 @@ QURANIC WORDS FROM SEMANTIC SEARCH:
     for word in quranic_words[:15]  # Limit to prevent token overflow
 ], ensure_ascii=False, indent=2)}
 
-{build_preference_context(preferences)}
-
 INSTRUCTIONS:
 1. Analyze each Quranic word above
 2. For each word, determine:
@@ -101,131 +99,7 @@ INSTRUCTIONS:
    - Are particles, prepositions, conjunctions
    - Have negative meanings
    - Are exclusive to Allah
-   - Don't match gender (if specified)
-
-5. Target: Suggest 5-8 HIGH-QUALITY names maximum
-   Quality over quantity. Only certain, appropriate suggestions.
-
-RETURN FORMAT (JSON only):
-{{
-  "names": [
-    {{
-      "name_arabic": "سليم",
-      "name_transliteration": "Salim",
-      "name_meaning": "Safe, sound, whole, complete",
-      "gender": "male",
-      "derived_from": "سلم",
-      "quranic_root": "س-ل-م",
-      "verse_references": ["37:84"],
-      "explanation": "Derived from the Quranic root meaning peace and safety. Used in verse 37:84 describing Prophet Ibrahim's pure heart.",
-      "confidence": "high",
-      "name_type": "traditional"
-    }}
-  ],
-  "filtered_out": [
-    {{
-      "word": "أسلم",
-      "reason": "This is a verb form (he submitted), not suitable as a name"
-    }}
-  ]
-}}
-
-VALIDATION CHECKLIST before suggesting ANY name:
-☐ Is it a noun or adjective (not verb/particle)?
-☐ Does it have a positive meaning?
-☐ Is it NOT exclusive to Allah?
-☐ Is the gender appropriate (if specified)?
-☐ Would this name be acceptable in Islamic culture?
-☐ Can you verify its usage or derivation?
-
-If you cannot confidently answer YES to all checks, DO NOT suggest the name.
-"""
-
-def build_preference_context(preferences):
-    if not preferences or not preferences.get('liked'):
-        return ""
-    
-    liked_patterns = analyze_liked_names(preferences['liked'])
-    disliked_patterns = analyze_liked_names(preferences.get('disliked', []))
-    
-    context = "\nUSER PREFERENCES:\n"
-    
-    if liked_patterns:
-        context += f"User liked names with these characteristics:\n"
-        context += f"- Meanings: {', '.join(liked_patterns['meanings'][:3])}\n"
-        context += f"- Sounds: {', '.join(liked_patterns['phonetic'][:3])}\n"
-        context += f"- Examples: {', '.join([n.name_arabic for n in preferences['liked'][:3]])}\n"
-    
-    if disliked_patterns:
-        context += f"\nUser disliked:\n"
-        context += f"- {', '.join([n.name_arabic for n in preferences['disliked'][:3]])}\n"
-        context += f"Avoid similar patterns.\n"
-    
-    return context
-```
-
----
-
-## 🛡️ Additional Safety Layers
-
-### 1. Post-Processing Validation
-
-```python
-def validate_llm_suggestions(suggestions: List[Dict]) -> List[Dict]:
-    """
-    Additional validation layer after LLM response
-    Even with good prompts, add safety checks
-    """
-    FORBIDDEN_NAMES = load_forbidden_names()  # Allah's names, inappropriate words
-    REQUIRED_FIELDS = ['name_arabic', 'name_transliteration', 'name_meaning', 'gender']
-    
-    validated = []
-    
-    for suggestion in suggestions:
-        # Check required fields
-        if not all(field in suggestion for field in REQUIRED_FIELDS):
-            continue
-        
-        # Check against forbidden list
-        if suggestion['name_arabic'] in FORBIDDEN_NAMES:
-            continue
-        
-        # Check gender markers match declared gender
-        if not validate_gender_markers(suggestion['name_arabic'], suggestion['gender']):
-            continue
-        
-        # Check Arabic script validity
-        if not is_valid_arabic(suggestion['name_arabic']):
-            continue
-        
-        # Check meaning is positive
-        if has_negative_sentiment(suggestion['name_meaning']):
-            continue
-        
-        validated.append(suggestion)
-    
-    return validated
-
-FORBIDDEN_PATTERNS = {
-    'allah_names': [
-        'الرحمن', 'الرحيم', 'الملك', 'القدوس', 'السلام', 'المؤمن',
-        'المهيمن', 'العزيز', 'الجبار', 'المتكبر', 'الخالق', 'البارئ',
-        # ... all 99 names
-    ],
-    'negative_words': [
-        'شيطان', 'إبليس', 'جهنم', 'عذاب', 'غضب'
-    ],
-    'verb_indicators': [
-        'أ',  # first person past
-        'ن',  # first person present
-        'ت',  # second person
-        'ي'   # third person (at start)
-    ]
-}
-
-def validate_gender_markers(arabic_name: str, declared_gender: str) -> bool:
-    """Check if gender markers match declared gender"""
-    
+   - Don't match gender
     # Common feminine endings
     if arabic_name.endswith(('ة', 'اء', 'ى')):
         return declared_gender in ['female', 'unisex']
@@ -242,7 +116,7 @@ def validate_gender_markers(arabic_name: str, declared_gender: str) -> bool:
 
 ## 📊 Improved Database Schema
 
-### Keep it simple but add caching
+### Keep it simple but add caching and detailed preferences
 
 ```python
 class NameSuggestion(Base):
@@ -255,6 +129,7 @@ class NameSuggestion(Base):
     name_arabic = Column(String, nullable=False)
     name_transliteration = Column(String)
     name_meaning = Column(Text)
+    name_meaning_embedding = Column(Vector(1024))  # For vector-based personalization
     gender = Column(String)
     
     # Quranic connection
@@ -290,7 +165,66 @@ class QueryCache(Base):
     hit_count = Column(Integer, default=0)
     last_used = Column(DateTime, default=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+class UserSession(Base):
+    """Represents a single user interaction session."""
+    __tablename__ = "user_sessions"
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    # Could add user_agent, ip_address etc. for analytics
+
+class UserPreference(Base):
+    """Stores a user's like or dislike for a specific name suggestion."""
+    __tablename__ = "user_preferences"
+    id = Column(Integer, primary_key=True)
+    session_id = Column(String, ForeignKey("user_sessions.id"), nullable=False)
+    suggestion_id = Column(Integer, ForeignKey("name_suggestions.id"), nullable=False)
+    preference_score = Column(Float, nullable=False)  # e.g., 1.0 for like, -1.0 for dislike
+    
+    # New fields for preference reason
+    reason_category_id = Column(Integer, ForeignKey("preference_reason_categories.id"))
+    reason_text = Column(Text) # User's raw text input
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    suggestion = relationship("NameSuggestion")
+    session = relationship("UserSession")
+    reason_category = relationship("PreferenceReasonCategory", back_populates="preferences")
+    
+    __table_args__ = (UniqueConstraint("session_id", "suggestion_id", name="_session_suggestion_uc"),)
+
+class PreferenceReasonCategory(Base):
+    __tablename__ = "preference_reason_categories"
+    id = Column(Integer, primary_key=True)
+    name = Column(String, unique=True, nullable=False)
+    description = Column(Text)
+    preferences = relationship("UserPreference", back_populates="reason_category")
 ```
+
+---
+
+### 3. Advanced Personalization with Preference Vectors
+
+Instead of simple text analysis, we can use the stored preference vectors for a much more nuanced personalization. This replaces the need for the `build_preference_context` function in the prompt, as the logic is now handled by our application before the LLM call.
+
+**Core Idea:** Use the user's entire history of liked/disliked name vectors to influence new searches and re-rank suggestions.
+
+**Implementation:**
+
+1.  **Get User Preference Vectors:** For a given `session_id`, retrieve all `NameSuggestion` objects the user has liked and disliked, along with their `name_meaning_embedding`.
+
+2.  **Context-Sensitive Search Boosting:**
+    *   Before performing the vector search for a new query (e.g., "names meaning strength"), first find the user's *liked* vector that is most semantically similar to the query itself.
+    *   Create a new query vector that is a weighted average of the user's original query and this most relevant liked vector. For example: `final_vector = 0.7 * query_vector + 0.3 * most_similar_liked_vector`.
+    *   Use this `final_vector` for the search. This intelligently steers the search towards a type of "strength" the user has previously shown they prefer.
+
+3.  **Dynamic Re-ranking of LLM Suggestions:**
+    *   After the LLM returns a list of new suggestions, calculate the cosine similarity of each new suggestion's embedding against *all* of the user's liked vectors.
+    *   The "preference score" for a new suggestion is the *maximum* similarity it has to any of the liked vectors.
+    *   Sort the suggestions based on this preference score before displaying them to the user.
+    *   Similarly, apply a penalty to suggestions that are too similar to things the user has disliked.
+
+This approach ensures that personalization is context-aware and leverages the full history of user preferences without losing information by averaging them into a single vector.
 
 ---
 
@@ -310,25 +244,24 @@ async def chat_endpoint(request: ChatRequest, db: Session = Depends(get_db)):
     if cached and is_cache_valid(cached):
         return build_response_from_cache(cached)
     
-    # 2. Vector search (your existing logic)
+    # 2. Vector search (with personalization boost)
+    preferences = get_user_preferences(db, request.session_id) # Fetches liked/disliked suggestion objects
+    boosted_query_vector = get_boosted_query_vector(request.message_vector, preferences['liked'])
+    
     quranic_words = get_similar_words(
         db=db,
-        query=request.message,
+        query_vector=boosted_query_vector,
         limit=20
     )
     
-    # 3. Get user preferences
-    preferences = get_user_preferences(db, request.session_id)
-    
-    # 4. Build strong prompt
+    # 3. Build strong prompt (now simpler)
     prompt = build_prompt(
         query=request.message,
         quranic_words=quranic_words,
-        preferences=preferences,
         gender=request.context.get('gender') if request.context else None
     )
     
-    # 5. Call LLM
+    # 4. Call LLM
     try:
         llm_response = await call_llm_with_retry(
             system_prompt=SYSTEM_PROMPT,
@@ -336,31 +269,38 @@ async def chat_endpoint(request: ChatRequest, db: Session = Depends(get_db)):
             temperature=0.3  # Lower temperature for more consistent filtering
         )
         
-        # 6. Parse and validate
+        # 5. Parse and validate
         suggestions_raw = parse_llm_response(llm_response)
         suggestions_validated = validate_llm_suggestions(suggestions_raw)
         
-        # 7. Save to database
+        # 6. Save to database (and generate embeddings for new suggestions)
         saved_suggestions = []
         for suggestion in suggestions_validated:
+            # Generate embedding for the name's meaning
+            meaning_embedding = generate_embedding(suggestion['name_meaning'])
+            
             db_suggestion = NameSuggestion(
                 session_id=request.session_id,
                 source_query=request.message,
+                name_meaning_embedding=meaning_embedding,
                 **suggestion
             )
             db.add(db_suggestion)
             db.flush()
             saved_suggestions.append(db_suggestion)
         
+        # 7. Re-rank suggestions based on user preferences
+        reranked_suggestions = rerank_suggestions(saved_suggestions, preferences)
+        
         # 8. Cache the result
-        cache_response(db, cache_key, saved_suggestions)
+        cache_response(db, cache_key, reranked_suggestions)
         
         db.commit()
         
         # 9. Return response
         return ChatResponse(
-            message=create_response_message(saved_suggestions),
-            suggestions=saved_suggestions,
+            message=create_response_message(reranked_suggestions),
+            suggestions=reranked_suggestions,
             root_words=quranic_words[:10]
         )
         
