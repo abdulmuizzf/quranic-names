@@ -6,44 +6,82 @@ This document outlines the step-by-step process for implementing the architectur
 
 ---
 
-### **Phase 1: Foundational Setup & Database Migration**
+### **Phase 1: Foundational Setup & Database Migration (COMPLETE)**
 
 **Goal:** Prepare the database schema to support all new features, including name suggestions, caching, user sessions, and detailed, categorized user preferences.
 
-1.  **Update Database Models (`app/models.py`):**
-    *   Add the `NameSuggestion` model.
-    *   Add the `QueryCache` model.
-    *   Add the `UserSession` model.
-    *   Add the `PreferenceReasonCategory` model.
-    *   Add the `UserPreference` model, ensuring it includes the `preference_score` (Float) and the relationship to `PreferenceReasonCategory`.
-
-2.  **Generate Database Migration:**
-    *   Run the command: `alembic revision --autogenerate -m "Add tables for name suggestions, caching, and user preferences"`
-    *   Review the generated migration script in `migrations/versions/` to ensure it correctly creates all new tables and relationships.
-
-3.  **Apply Database Migration:**
-    *   Run the command: `alembic upgrade head`
-    *   Verify in the database that the new tables (`name_suggestions`, `query_cache`, `user_sessions`, `preference_reason_categories`, `user_preferences`) have been created successfully.
+**Status:** This phase is complete. All database models have been created and the migration has been successfully applied.
 
 ---
 
-### **Phase 2: Core Backend Logic & LLM Integration**
+### **Phase 2: Core Backend Logic & LLM Integration (COMPLETE)**
 
 **Goal:** Build the API endpoint and core logic for generating name suggestions, without personalization.
 
-1.  **Create Chat Endpoint (`app/main.py`):**
-    *   Create a new POST endpoint: `/api/chat`.
-    *   Define the request and response Pydantic models (`ChatRequest`, `ChatResponse`).
-    *   Implement the basic flow: receive a query, perform a vector search, and prepare for the LLM call.
+**Status:** This phase is complete. The backend is fully functional and exposes both a RESTful API and an MCP server.
 
-2.  **Implement Prompt Engineering (`app/prompts.py`):**
-    *   Create a new file `app/prompts.py` to store the `SYSTEM_PROMPT` and the `build_prompt` function.
-    *   Ensure the prompt is detailed and follows the safety-first principles from the architecture plan.
+#### **Architectural Overview & Code Snippets**
 
-3.  **Integrate LLM Service (`app/llm.py`):**
-    *   Create a new file `app/llm.py` to house the `call_llm_with_retry` function.
-    *   Use an environment variable for the LLM API key.
-    *   Implement the retry logic with exponential backoff.
+The backend is built on a modular architecture that separates concerns into distinct files, preventing issues like circular imports and improving maintainability.
+
+**1. `app/state.py`: Shared Application State**
+
+This file holds shared, in-memory objects like the sentence transformer model cache. Centralizing the cache in this way allows other modules to access it without creating circular dependencies.
+
+**2. `app/tools.py`: MCP Server and Core Logic**
+
+This module contains the `FastMCP` server and the core business logic of the application.
+
+*   **`_find_quranic_roots_by_meaning`:** The internal function that takes a user query and performs a vector search.
+*   **`_generate_names_from_roots`:** The internal function that takes the results of the search and calls the Gemini LLM to generate name suggestions.
+*   **MCP Tools:** The module also defines the `@mcp.tool`-decorated functions that wrap the internal logic, exposing it to the MCP server.
+
+**3. `app/api.py`: RESTful API Endpoints**
+
+This module contains the FastAPI `APIRouter` and all the user-facing REST endpoints.
+
+*   **`/api/search`:** The original endpoint for direct vector searches.
+*   **`/api/chat`:** This endpoint orchestrates the name suggestion process by calling the internal logic functions from `app/tools.py`.
+
+    ```python
+    # Example from app/api.py
+    @api_router.post("/chat", response_model=schema.ChatResponse)
+    async def chat_with_ai(request: schema.ChatRequest, db: Session = Depends(get_db)):
+        # Step 1: Find relevant roots
+        roots = _find_quranic_roots_by_meaning(request.query, db)
+        # Step 2: Generate names from those roots
+        suggestions = _generate_names_from_roots(request.query, roots)
+        # ...
+    ```
+
+**4. `app/main.py`: Application Entry Point**
+
+This file is now a clean entry point responsible only for assembling the application. It creates the main `FastAPI` app, includes the router from `app/api.py`, and mounts the MCP server from `app/tools.py`.
+
+**5. `app/llm.py`: The LLM Service**
+
+This module is responsible for all communication with the Gemini 2.5 Pro API.
+
+*   **`call_llm_with_retry`:** This is the primary function. It takes the system and user prompts, handles API key configuration, and implements an exponential backoff retry mechanism to ensure resilience.
+
+    ```python
+    # Example from app/llm.py
+    def call_llm_with_retry(...):
+        model = genai.GenerativeModel(
+            model_name='gemini-2.5-pro',
+            system_instruction=system_prompt
+        )
+        # ... retry logic ...
+        response = model.generate_content(user_prompt)
+        return json.loads(response.text)
+    ```
+
+**6. `app/prompts.py`: Prompt Engineering**
+
+This module contains the templates and logic for constructing the prompts sent to the LLM.
+
+*   **`SYSTEM_PROMPT`:** A constant that contains the critical, high-level instructions and rules for the LLM (e.g., "VALID DERIVATIONS ONLY", "NO FORBIDDEN NAMES", "FORMATTING").
+*   **`build_prompt`:** A function that takes the user's query and the search results and formats them into the final user-facing prompt.
 
 ---
 
