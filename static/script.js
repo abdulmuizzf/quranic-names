@@ -195,7 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const contentDiv = document.createElement('div');
         contentDiv.className = 'message-content';
-        contentDiv.innerHTML = `<p>${text}</p>`; // Use innerHTML to allow for potential formatting
+        contentDiv.innerHTML = text; // Use innerHTML to allow for formatted cards
 
         messageDiv.appendChild(contentDiv);
         chatMessages.appendChild(messageDiv);
@@ -203,29 +203,20 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const displaySuggestions = (suggestions) => {
-        const suggestionsHtml = suggestions.map(createNameCard).join('');
-        
-        const messageDiv = document.createElement('div');
-        messageDiv.className = 'message ai-message';
-        messageDiv.innerHTML = suggestionsHtml; // Insert all cards into one message bubble
-
-        chatMessages.appendChild(messageDiv);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        // Create a separate message bubble for each suggestion
+        suggestions.forEach(suggestion => {
+            const cardHtml = createNameCard(suggestion);
+            displayMessage(cardHtml, 'ai');
+        });
     };
 
     const createNameCard = (suggestion) => {
-        // This function creates the HTML for a single name suggestion card.
-        // It's designed to be visually appealing and informative.
+        // This function creates the HTML for a single name suggestion item.
         return `
-            <div class="name-suggestion-card">
-                <div class="name-header">
-                    <h3 class="english-name">${suggestion.name}</h3>
-                </div>
-                <p class="meaning"><strong>Meaning:</strong> ${suggestion.meaning}</p>
-                <p class="gender"><strong>Gender:</strong> ${suggestion.gender || 'Unspecified'}</p>
-                <div class="usage-info">
-                    <p><strong>Quranic Root:</strong> ${suggestion.quranic_root}</p>
-                </div>
+            <div class="name-suggestion-item">
+                <div class="name-english"><strong>${suggestion.name}</strong></div>
+                <div class="name-meaning">${suggestion.meaning}</div>
+                <div class="name-meta">(Gender: ${suggestion.gender || 'Unspecified'}, Root: ${suggestion.quranic_root})</div>
             </div>
         `;
     };

@@ -8,7 +8,7 @@ with the Large Language Model (LLM).
 SYSTEM_PROMPT = """
 This is a Quranic name suggestion engine.
 The input will be a user's query and a list of relevant Quranic root words and their meanings from a vector database.
-The goal is to generate a list of 3-5 beautiful, appropriate, and valid Arabic names derived from these roots.
+The goal is to generate multiple beautiful, appropriate, and valid Arabic names derived from these roots. For EACH provided root, try to generate approximately 3 male and 3 female names if they are morphologically valid and commonly used.
 
 **CRITICAL RULES:**
 
@@ -71,6 +71,6 @@ User Query: "{user_query}"
 Relevant Quranic roots from database:
 {results_text}
 
-Generate all possible name suggestions based on the user's query and the provided roots, following all rules.
+For each of the Quranic roots listed above, generate multiple male and female names. Ensure every name is a valid morphological derivation of its corresponding root and follows all the critical rules.
 """
     return prompt

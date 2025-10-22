@@ -326,69 +326,30 @@ header p {
     border-bottom-left-radius: 4px;
 }
 
-/* --- Name Suggestion Card Styles --- */
-.name-suggestion-card {
+/* --- Name Suggestion Card Styles (Reverted to Vertical Card) --- */
+.name-suggestion-item {
     background-color: #fdfdfd;
     border: 1px solid #e9ecef;
     border-radius: 12px;
     padding: 1rem;
-    margin-top: 0.5rem; /* Space between cards if multiple are in one bubble */
-    max-width: 400px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.03);
 }
 
-.name-suggestion-card:first-child {
-    margin-top: 0;
-}
-
-.name-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid #e9ecef;
-    padding-bottom: 0.75rem;
-    margin-bottom: 0.75rem;
-}
-
-.arabic-name {
-    font-family: 'Noto Naskh Arabic', serif;
-    font-size: 1.8rem;
-    color: var(--primary-color);
-    margin: 0;
-}
-
-.english-name {
-    font-size: 1.1rem;
+.name-english {
     font-weight: 600;
-    color: #343a40;
-    margin: 0;
+    font-size: 1.1rem;
+    color: var(--primary-color);
+    margin-bottom: 0.25rem;
 }
 
-.name-suggestion-card p {
-    margin: 0.5rem 0;
-    font-size: 0.95rem;
-    line-height: 1.6;
-}
-
-.meaning {
+.name-meaning {
     font-style: italic;
+    margin-bottom: 0.5rem;
 }
 
-.gender, .usage-info p {
-    font-size: 0.9rem;
+.name-meta {
+    font-size: 0.85rem;
     color: #6c757d;
-}
-
-.usage-info {
-    background-color: #f8f9fa;
-    padding: 0.5rem 0.75rem;
-    border-radius: 8px;
-    margin-top: 0.75rem;
-}
-
-.explanation {
-    margin-top: 0.75rem;
-    color: #495057;
 }
 
 
