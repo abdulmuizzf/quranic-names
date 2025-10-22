@@ -71,6 +71,6 @@ User Query: "{user_query}"
 Relevant Quranic roots from database:
 {results_text}
 
-Generate 3-5 name suggestions based on the user's query and the provided roots, following all rules.
+Generate all possible name suggestions based on the user's query and the provided roots, following all rules.
 """
     return prompt
