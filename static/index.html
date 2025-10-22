@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quranic Root Word Search</title>
+    <title>Quranic Name Suggester</title>
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,30 +12,56 @@
 <body>
     <div class="container">
         <header>
-            <h1>Quranic Root Word Search</h1>
-            <p>Enter an English word or phrase to find semantically similar Quranic root words.</p>
+            <h1>Quranic Name Suggester</h1>
+            <p>Discover beautiful Quranic names, starting with the meaning.</p>
         </header>
+
+        <div class="tabs">
+            <button class="tab-button" data-tab="searchTab">Find Root Words</button>
+            <button class="tab-button active" data-tab="chatTab">Generate Quranic Names</button>
+        </div>
+
         <main>
-            <div class="search-controls">
-                <div class="search-box">
-                    <input type="text" id="searchInput" placeholder="e.g., justice, mercy, creation...">
-                    <button id="searchButton">Search</button>
+            <div id="searchTab" class="tab-content">
+                <div class="search-controls">
+                    <div class="search-box">
+                        <input type="text" id="searchInput" placeholder="e.g., justice, mercy, creation...">
+                        <button id="searchButton">Search</button>
+                    </div>
+                    <div class="search-options">
+                        <label for="resultLimit">Show results:</label>
+                        <select id="resultLimit">
+                            <option value="5">5</option>
+                            <option value="10" selected>10</option>
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                        </select>
+                        <label for="minSimilarity">Min. Match %:</label>
+                        <input type="number" id="minSimilarity" min="0" max="100" value="50" step="5">
+                    </div>
                 </div>
-                <div class="search-options">
-                    <label for="resultLimit">Show results:</label>
-                    <select id="resultLimit">
-                        <option value="5">5</option>
-                        <option value="10" selected>10</option>
-                        <option value="20">20</option>
-                        <option value="50">50</option>
-                    </select>
-                    <label for="minSimilarity">Min. Match %:</label>
-                    <input type="number" id="minSimilarity" min="0" max="100" value="50" step="5">
+                <div id="resultsContainer">
+                    <!-- Search results will be dynamically inserted here -->
                 </div>
             </div>
-            <div id="resultsContainer">
-                <!-- Search results will be dynamically inserted here -->
+
+            <div id="chatTab" class="tab-content active">
+                <div id="chat-window">
+                    <div id="chat-messages">
+                        <!-- Chat messages will be dynamically inserted here -->
+                         <div class="message ai-message">
+                            <div class="message-content">
+                                <p>Welcome! What qualities or meanings are you looking for in a name?</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="chat-input-container">
+                        <input type="text" id="chatInput" placeholder="e.g., a name that means 'light' or 'wisdom'...">
+                        <button id="sendButton">Send</button>
+                    </div>
+                </div>
             </div>
+
             <div id="loadingIndicator" class="hidden">
                 <div class="spinner"></div>
             </div>

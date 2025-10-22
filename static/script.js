@@ -6,14 +6,44 @@ const generateMorphologyUrl = (verseRef) => {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+    // --- DOM Elements ---
+    // Search Tab
     const searchInput = document.getElementById('searchInput');
     const searchButton = document.getElementById('searchButton');
     const resultsContainer = document.getElementById('resultsContainer');
+    
+    // Chat Tab
+    const chatMessages = document.getElementById('chat-messages');
+    const chatInput = document.getElementById('chatInput');
+    const sendButton = document.getElementById('sendButton');
+
+    // Shared
     const loadingIndicator = document.getElementById('loadingIndicator');
     const errorMessage = document.getElementById('error-message');
+    const tabs = document.querySelectorAll('.tab-button');
+    const tabContents = document.querySelectorAll('.tab-content');
 
+    // --- State ---
+    let sessionToken = null; // To hold the session token for the chat
+
+    // --- API Configuration ---
     const API_URL = 'http://127.0.0.1:8000/api';
 
+    // --- Tab Switching Logic ---
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            // Deactivate all tabs and content
+            tabs.forEach(t => t.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+
+            // Activate the clicked tab and its content
+            tab.classList.add('active');
+            document.getElementById(tab.dataset.tab).classList.add('active');
+        });
+    });
+
+
+    // --- Semantic Search Logic ---
     const performSearch = async () => {
         const query = searchInput.value.trim();
         const limit = document.getElementById('resultLimit').value;
@@ -31,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const response = await fetch(
-                `${API_URL}/search?q=${encodeURIComponent(query)}&limit=${limit}&min_similarity=${minSimilarity}`
+                `${API_URL}/search?q=${encodeURIComponent(query)}&limit=${limit}&min_similarity=${minSimilarity / 100}`
             );
             
             if (!response.ok) {
@@ -74,8 +104,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             ${word.verse_reference}
                         </a>
                     </td>
-                    <td class="similarity-cell ${word.similarity_score > 90 ? 'high-match' : word.similarity_score > 75 ? 'medium-match' : 'low-match'}">
-                        ${word.similarity_score}%
+                    <td class="similarity-cell ${getSimilarityClass(word.similarity_score * 100)}">
+                        ${(word.similarity_score * 100).toFixed(0)}%
                     </td>
                 </tr>
             `).join('');
@@ -86,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="meta">
                         <span>Letter: ${result.letter}</span>
                         <span>Category: ${result.category}</span>
-                        <span class="similarity">Best Match: ${result.best_match_score}%</span>
+                        <span class="similarity">Best Match: ${(result.best_match_score * 100).toFixed(0)}%</span>
                     </div>
                 </div>
                 <div class="word-occurrences">
@@ -110,19 +140,133 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
+    const getSimilarityClass = (score) => {
+        if (score > 85) return 'high-match';
+        if (score > 65) return 'medium-match';
+        return 'low-match';
+    };
+
     const showError = (message) => {
         errorMessage.textContent = `An error occurred: ${message}`;
         errorMessage.classList.remove('hidden');
     };
 
-    // Event Listeners
+    // --- Chat Logic ---
+    const sendChatMessage = async () => {
+        const query = chatInput.value.trim();
+        if (!query) return;
+
+        displayMessage(query, 'user');
+        chatInput.value = '';
+        showLoadingIndicator(true, 'chat');
+
+        try {
+            const response = await fetch(`${API_URL}/chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: query, session_token: sessionToken }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || `HTTP error! Status: ${response.status}`);
+            }
+
+            const chatResponse = await response.json();
+            sessionToken = chatResponse.session_token; // Store the session token
+
+            if (chatResponse.suggestions && chatResponse.suggestions.length > 0) {
+                displaySuggestions(chatResponse.suggestions);
+            } else {
+                displayMessage("I couldn't find any specific name suggestions for that. Could you try a different meaning?", 'ai');
+            }
+
+        } catch (error) {
+            console.error('Chat failed:', error);
+            displayMessage(`Sorry, an error occurred: ${error.message}`, 'ai-error');
+        } finally {
+            showLoadingIndicator(false, 'chat');
+        }
+    };
+
+    const displayMessage = (text, sender) => {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${sender}-message`;
+        
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'message-content';
+        contentDiv.innerHTML = `<p>${text}</p>`; // Use innerHTML to allow for potential formatting
+
+        messageDiv.appendChild(contentDiv);
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight; // Auto-scroll to bottom
+    };
+
+    const displaySuggestions = (suggestions) => {
+        const suggestionsHtml = suggestions.map(createNameCard).join('');
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message ai-message';
+        messageDiv.innerHTML = suggestionsHtml; // Insert all cards into one message bubble
+
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    };
+
+    const createNameCard = (suggestion) => {
+        // This function creates the HTML for a single name suggestion card.
+        // It's designed to be visually appealing and informative.
+        return `
+            <div class="name-suggestion-card">
+                <div class="name-header">
+                    <h3 class="english-name">${suggestion.name}</h3>
+                </div>
+                <p class="meaning"><strong>Meaning:</strong> ${suggestion.meaning}</p>
+                <p class="gender"><strong>Gender:</strong> ${suggestion.gender || 'Unspecified'}</p>
+                <div class="usage-info">
+                    <p><strong>Quranic Root:</strong> ${suggestion.quranic_root}</p>
+                </div>
+            </div>
+        `;
+    };
+
+    const showLoadingIndicator = (show, context = 'search') => {
+        if (context === 'chat') {
+            // For chat, we can show a typing indicator
+            let indicator = document.getElementById('typing-indicator');
+            if (show) {
+                if (!indicator) {
+                    indicator = document.createElement('div');
+                    indicator.id = 'typing-indicator';
+                    indicator.className = 'message ai-message';
+                    indicator.innerHTML = `<div class="message-content"><div class="spinner"></div></div>`;
+                    chatMessages.appendChild(indicator);
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
+            } else {
+                if (indicator) {
+                    indicator.remove();
+                }
+            }
+        } else {
+            // Original behavior for search
+            loadingIndicator.classList.toggle('hidden', !show);
+        }
+    };
+
+
+    // --- Event Listeners ---
+    // Search
     searchButton.addEventListener('click', performSearch);
     searchInput.addEventListener('keyup', (event) => {
-        if (event.key === 'Enter') {
-            performSearch();
-        }
+        if (event.key === 'Enter') performSearch();
     });
-
-    // Add event listener for minimum similarity changes
+    document.getElementById('resultLimit').addEventListener('change', performSearch);
     document.getElementById('minSimilarity').addEventListener('change', performSearch);
+
+    // Chat
+    sendButton.addEventListener('click', sendChatMessage);
+    chatInput.addEventListener('keyup', (event) => {
+        if (event.key === 'Enter') sendChatMessage();
+    });
 });
