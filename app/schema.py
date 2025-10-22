@@ -22,3 +22,33 @@ class SearchResult(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# --- Pydantic Models for MCP Tools ---
+
+class RootInfo(BaseModel):
+    sequence: str
+    category: str
+    english_text: str
+
+
+# --- Pydantic Models for Chat Endpoint ---
+
+class NameSuggestion(BaseModel):
+    name: str
+    meaning: str
+    gender: str | None = None
+    quranic_root: str
+
+    class Config:
+        from_attributes = True
+
+
+class ChatRequest(BaseModel):
+    query: str
+    session_token: str | None = None
+
+
+class ChatResponse(BaseModel):
+    session_token: str
+    suggestions: list[NameSuggestion]
