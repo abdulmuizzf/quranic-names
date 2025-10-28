@@ -30,6 +30,7 @@ class RootInfo(BaseModel):
     sequence: str
     category: str
     english_text: str
+    best_match_score: float
 
 
 # --- Pydantic Models for Chat Endpoint ---

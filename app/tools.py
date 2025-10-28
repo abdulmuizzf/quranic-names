@@ -24,17 +24,20 @@ def _find_quranic_roots_by_meaning(query_text: str, db: Session) -> List[schema.
         raise Exception("Embedding model is not loaded.")
 
     query_embedding = model.encode(query_text)
-    search_results = query.get_similar_words(db, query_embedding, limit=5)
+    search_results = query.get_similar_words(db, query_embedding, limit=20)
 
     if not search_results:
         return []
 
+    print(f"Found {len(search_results)} similar roots for query '{query_text}'.")
+    print(f"First result details: {search_results[0]}")
     # The query returns a list of dicts, so we access items by key
     root_info_list = [
         schema.RootInfo(
             sequence=r['sequence'],
             category=r['category'],
             english_text=r['occurrences'][0]['english_text'] if r['occurrences'] else "N/A",
+            best_match_score=r['best_match_score']
         )
         for r in search_results
     ]

@@ -57,10 +57,11 @@ def build_prompt(user_query: str, search_results: list[dict]) -> str:
     Returns:
         A formatted string containing the full prompt.
     """
+    print(f"Response details: {search_results}")
     # Format the search results for inclusion in the prompt
     results_text = "\n".join(
         [
-            f"- Root: {res['sequence']}, Category: {res['category']}, Best Meaning: '{res['english_text']}'"
+            f"- Root: {res['sequence']}, Category: {res['category']}, Best Meaning: '{res['english_text']}', Match Similarity with User Query: {res['best_match_score']}%"
             for res in search_results
         ]
     )
