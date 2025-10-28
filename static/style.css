@@ -429,3 +429,40 @@ header p {
     padding: 1rem;
     border-radius: 8px;
 }
+
+/* --- Batch Generation Styles --- */
+.generation-controls {
+    margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: center;
+}
+
+.action-button {
+    padding: 0.75rem 2rem;
+    font-size: 1rem;
+    font-weight: 500;
+    background-color: #28a745; /* A different color to distinguish */
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.action-button:hover {
+    background-color: #218838;
+}
+
+#all-names-container {
+    margin-top: 1.5rem;
+    max-height: 500px; /* Or as desired */
+    overflow-y: auto;
+    padding-right: 10px; /* For scrollbar */
+}
+
+.separator {
+    border: none;
+    height: 1px;
+    background-color: var(--card-border);
+    margin: 2rem 0;
+}

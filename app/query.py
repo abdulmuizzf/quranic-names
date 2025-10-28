@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 import numpy as np
-from app import models
+from app import models, schema
 
 
 def get_similar_words(db: Session, query_embedding: np.ndarray, limit: int = 10, min_similarity: float = 0):
@@ -71,3 +72,47 @@ def get_similar_words(db: Session, query_embedding: np.ndarray, limit: int = 10,
     result_list = list(sequence_groups.values())
     result_list.sort(key=lambda x: x['best_match_score'], reverse=True)
     return result_list
+
+
+def get_all_root_words(db: Session) -> list[schema.RootWordInfo]:
+    """
+    Retrieves a list of all unique Quranic root words from the database,
+    including one example transliteration and english text for each.
+    """
+    # To ensure we get exactly one transliteration per sequence, we first
+    # find the ID of the first word associated with each sequence.
+    first_word_subquery = (
+        db.query(
+            models.Word.sequence_id,
+            func.min(models.Word.id).label("first_word_id")
+        )
+        .group_by(models.Word.sequence_id)
+        .subquery()
+    )
+
+    # Now, we join Sequence with Category and the specific Word identified above.
+    results = (
+        db.query(
+            models.Sequence.sequence,
+            models.Word.transliteration,
+            models.Category.name.label("category"),
+            models.Word.english_text
+        )
+        .join(first_word_subquery, models.Sequence.id == first_word_subquery.c.sequence_id)
+        .join(models.Word, models.Word.id == first_word_subquery.c.first_word_id)
+        .join(models.Category, models.Sequence.category_id == models.Category.id)
+        .order_by(models.Sequence.sequence)
+        .all()
+    )
+
+    print(f"Retrieved {len(results)} unique root words with details from the database.")
+
+    # Map the raw results to the Pydantic schema
+    return [
+        schema.RootWordInfo(
+            sequence=row.sequence,
+            transliteration=row.transliteration,
+            category=row.category,
+            english_text=row.english_text
+        ) for row in results
+    ]

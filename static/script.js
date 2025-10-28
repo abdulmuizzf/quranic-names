@@ -16,6 +16,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const chatMessages = document.getElementById('chat-messages');
     const chatInput = document.getElementById('chatInput');
     const sendButton = document.getElementById('sendButton');
+    const generateAllButton = document.getElementById('generateAllButton');
+    const allNamesContainer = document.getElementById('all-names-container');
 
     // Shared
     const loadingIndicator = document.getElementById('loadingIndicator');
@@ -240,7 +242,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         } else {
-            // Original behavior for search
+            // Original behavior for search and batch
             loadingIndicator.classList.toggle('hidden', !show);
         }
     };
@@ -260,4 +262,81 @@ document.addEventListener('DOMContentLoaded', () => {
     chatInput.addEventListener('keyup', (event) => {
         if (event.key === 'Enter') sendChatMessage();
     });
+
+    // Batch Generation
+    generateAllButton.addEventListener('click', handleGenerateAll);
+
+    // --- Batch Generation Logic ---
+    async function handleGenerateAll() {
+        showLoadingIndicator(true, 'batch');
+        allNamesContainer.innerHTML = ''; // Clear previous results
+        errorMessage.classList.add('hidden');
+
+        try {
+            // 1. Fetch all root words from our new endpoint
+            const response = await fetch(`${API_URL}/root-words`);
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || `HTTP error! Status: ${response.status}`);
+            }
+            const data = await response.json();
+            const rootWords = data.root_words;
+
+            // 2. Process the root words in batches
+            const batchSize = 5;
+            for (let i = 0; i < rootWords.length; i += batchSize) {
+                const batch = rootWords.slice(i, i + batchSize);
+                
+                // Create a query string from the batch's info
+                const batchQuery = batch.map(rw => `${rw.sequence} (${rw.english_text})`).join(', ');
+                
+            // 3. Call the new generate-names endpoint for each batch
+            const generateResponse = await fetch(`${API_URL}/generate-names`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ root_words: batch }),
+            });
+
+            if (!generateResponse.ok) {
+                console.warn(`Batch ${i/batchSize + 1} failed. Continuing...`);
+                continue; // Skip to the next batch on error
+            }
+
+            const suggestions = await generateResponse.json();
+
+            // 4. Display the results for the current batch
+            if (suggestions && suggestions.length > 0) {
+                displayBatchSuggestions(suggestions, batch);
+            }
+            }
+
+        } catch (error) {
+            console.error('Batch generation failed:', error);
+            showError(error.message);
+        } finally {
+            showLoadingIndicator(false, 'batch');
+        }
+    }
+
+    function displayBatchSuggestions(suggestions, batchRoots) {
+        const batchContainer = document.createElement('div');
+        batchContainer.className = 'batch-result-card';
+
+        const rootWordsHtml = batchRoots.map(root => 
+            `<span class="root-word-tag">${root.sequence}</span>`
+        ).join(' ');
+
+        let suggestionsHtml = suggestions.map(createNameCard).join('');
+
+        batchContainer.innerHTML = `
+            <div class="batch-header">
+                <h4>Names from Roots: ${rootWordsHtml}</h4>
+            </div>
+            <div class="batch-suggestions">
+                ${suggestionsHtml}
+            </div>
+        `;
+        allNamesContainer.appendChild(batchContainer);
+        allNamesContainer.scrollTop = allNamesContainer.scrollHeight;
+    }
 });

@@ -93,6 +93,24 @@ This module contains the templates and logic for constructing the prompts sent t
 
 ---
 
+### **New Feature: Batch Name Generation (COMPLETE)**
+
+**Goal:** Allow users to generate names from all Quranic root words without a semantic search.
+
+**Status:** This feature is complete.
+
+1.  **Backend Endpoint (`app/api.py`):**
+    *   A new GET endpoint, `/api/root-words`, was created.
+    *   It uses a new database function, `get_all_root_words` (in `app/query.py`), to efficiently fetch all ~790 unique root words with an associated transliteration and meaning.
+    *   A new Pydantic schema, `AllRootWordsResponse`, was created to define the response structure.
+
+2.  **Frontend Implementation (`static/`):**
+    *   A "Generate All Names" button and a dedicated results container were added to the "Generate Quranic Names" tab in `index.html`.
+    *   New CSS styles were added in `style.css` for these elements.
+    *   The core logic in `script.js` fetches all root words and processes them in batches of 5. For each batch, it calls the `/api/chat` endpoint and renders the suggestions progressively.
+
+---
+
 ### **Phase 4: Advanced Personalization & Feedback Loop**
 
 **Goal:** Implement the full personalization engine based on user feedback.

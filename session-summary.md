@@ -85,6 +85,13 @@ We have successfully built a user-facing frontend that integrates with our new b
 
 The next step is to implement the advanced personalization features outlined in Phase 4, starting with the user feedback mechanism.
 
+**New Feature: Batch Name Generation**
+
+A new feature has been implemented to allow users to generate names from all ~790 Quranic root words in the database without needing to perform a semantic search.
+
+*   **Backend:** A new `/api/root-words` endpoint was created to efficiently serve a complete list of all root words, including an example transliteration and meaning for each.
+*   **Frontend:** The "Generate Quranic Names" tab now includes a "Generate All Names" button. This feature fetches all root words and processes them in small, manageable batches, calling the AI to generate name suggestions for each batch and displaying the results progressively.
+
 The developer has instructed the AI assistant to **wait for an explicit command** before starting the implementation of the next phase.
 
 

@@ -71,6 +71,52 @@ async def chat_with_ai(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+@api_router.get("/root-words", response_model=schema.AllRootWordsResponse)
+def get_root_words(db: Session = Depends(get_db)):
+    """
+    Returns a complete list of all unique Quranic root words in the database.
+    """
+    try:
+        all_roots = query.get_all_root_words(db)
+        return schema.AllRootWordsResponse(root_words=all_roots)
+    except Exception as e:
+        logging.exception("An error occurred while fetching all root words.")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@api_router.post("/generate-names", response_model=List[schema.NameSuggestion])
+async def generate_names_from_roots_endpoint(
+    request: schema.GenerateNamesRequest,
+):
+    """
+    Generates name suggestions directly from a provided list of root words.
+    """
+    try:
+        # Create a descriptive query for the LLM's context.
+        context_query = (
+            "Generate names from the following Quranic roots: " +
+            ", ".join(f"{rw.sequence} ({rw.english_text})" for rw in request.root_words)
+        )
+        
+        # The `_generate_names_from_roots` function expects `RootInfo` objects.
+        # We can map our `RootWordInfo` objects to this, setting a default
+        # score since it's not applicable here.
+        root_infos = [
+            schema.RootInfo(
+                sequence=rw.sequence,
+                category=rw.category,
+                english_text=rw.english_text,
+                best_match_score=0.0
+            ) for rw in request.root_words
+        ]
+
+        suggestions = _generate_names_from_roots(context_query, root_infos)
+        return suggestions
+    except Exception as e:
+        logging.exception("An error occurred during batch name generation.")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
 @api_router.get("/")
 def read_root():
     return {"status": "API is running"}

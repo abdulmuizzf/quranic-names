@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import List
 
 
 class WordOccurrence(BaseModel):
@@ -53,3 +54,21 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     session_token: str
     suggestions: list[NameSuggestion]
+
+
+class RootWordInfo(BaseModel):
+    sequence: str
+    transliteration: str
+    category: str
+    english_text: str
+
+    class Config:
+        from_attributes = True
+
+
+class AllRootWordsResponse(BaseModel):
+    root_words: List[RootWordInfo]
+
+
+class GenerateNamesRequest(BaseModel):
+    root_words: List[RootWordInfo]
