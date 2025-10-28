@@ -72,13 +72,13 @@ async def chat_with_ai(
 
 
 @api_router.get("/root-words", response_model=schema.AllRootWordsResponse)
-def get_root_words(db: Session = Depends(get_db)):
+def get_root_words(db: Session = Depends(get_db), skip: int = 0, limit: int = 10):
     """
-    Returns a complete list of all unique Quranic root words in the database.
+    Returns a paginated list of all unique Quranic root words in the database.
     """
     try:
-        all_roots = query.get_all_root_words(db)
-        return schema.AllRootWordsResponse(root_words=all_roots)
+        all_roots, total = query.get_all_root_words(db, skip=skip, limit=limit)
+        return schema.AllRootWordsResponse(root_words=all_roots, total=total)
     except Exception as e:
         logging.exception("An error occurred while fetching all root words.")
         raise HTTPException(status_code=500, detail=str(e)) from e

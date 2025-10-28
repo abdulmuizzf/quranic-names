@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const sendButton = document.getElementById('sendButton');
     const generateAllButton = document.getElementById('generateAllButton');
     const allNamesContainer = document.getElementById('all-names-container');
+    const copyAllButton = document.getElementById('copyAllButton');
 
     // Shared
     const loadingIndicator = document.getElementById('loadingIndicator');
@@ -264,61 +265,107 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Batch Generation
-    generateAllButton.addEventListener('click', handleGenerateAll);
+    generateAllButton.addEventListener('click', toggleGeneration);
+    copyAllButton.addEventListener('click', copyAllGeneratedNames);
+
+    // --- State for Batch Generation ---
+    let allGeneratedNames = [];
+    let isGenerationPaused = true;
+    let currentOffset = 0;
+    const pageSize = 10;
+    let totalRoots = 0;
 
     // --- Batch Generation Logic ---
+    function toggleGeneration() {
+        isGenerationPaused = !isGenerationPaused;
+        if (!isGenerationPaused) {
+            generateAllButton.textContent = 'Pause Generation';
+            generateAllButton.classList.add('secondary-action');
+            handleGenerateAll();
+        } else {
+            generateAllButton.textContent = 'Resume Generation';
+            generateAllButton.classList.remove('secondary-action');
+        }
+    }
+
     async function handleGenerateAll() {
+        if (isGenerationPaused) return;
+
         showLoadingIndicator(true, 'batch');
-        allNamesContainer.innerHTML = ''; // Clear previous results
         errorMessage.classList.add('hidden');
 
+        // Only clear the container if starting from the beginning
+        if (currentOffset === 0) {
+            allNamesContainer.innerHTML = '';
+            allGeneratedNames = [];
+        }
+
         try {
-            // 1. Fetch all root words from our new endpoint
-            const response = await fetch(`${API_URL}/root-words`);
+            // 1. Fetch a page of root words
+            const response = await fetch(`${API_URL}/root-words?skip=${currentOffset}&limit=${pageSize}`);
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.detail || `HTTP error! Status: ${response.status}`);
             }
             const data = await response.json();
             const rootWords = data.root_words;
+            totalRoots = data.total;
 
-            // 2. Process the root words in batches
-            const batchSize = 5;
-            for (let i = 0; i < rootWords.length; i += batchSize) {
-                const batch = rootWords.slice(i, i + batchSize);
-                
-                // Create a query string from the batch's info
-                const batchQuery = batch.map(rw => `${rw.sequence} (${rw.english_text})`).join(', ');
-                
-            // 3. Call the new generate-names endpoint for each batch
-            const generateResponse = await fetch(`${API_URL}/generate-names`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ root_words: batch }),
-            });
+            // 2. Process the fetched root words in smaller batches for the LLM
+            const llmBatchSize = 5;
+            for (let i = 0; i < rootWords.length; i += llmBatchSize) {
+                if (isGenerationPaused) {
+                    showLoadingIndicator(false, 'batch');
+                    return; // Stop processing if paused
+                }
+                const batch = rootWords.slice(i, i + llmBatchSize);
 
-            if (!generateResponse.ok) {
-                console.warn(`Batch ${i/batchSize + 1} failed. Continuing...`);
-                continue; // Skip to the next batch on error
+                // 3. Call the generate-names endpoint for each small batch
+                const generateResponse = await fetch(`${API_URL}/generate-names`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ root_words: batch }),
+                });
+
+                if (!generateResponse.ok) {
+                    console.warn(`LLM Batch failed. Continuing...`);
+                    continue;
+                }
+
+                const suggestions = await generateResponse.json();
+
+                // 4. Store and display the results
+                if (suggestions && suggestions.length > 0) {
+                    allGeneratedNames.push(...suggestions);
+                    displayBatchSuggestions(suggestions, batch);
+                }
             }
 
-            const suggestions = await generateResponse.json();
+            currentOffset += pageSize;
 
-            // 4. Display the results for the current batch
-            if (suggestions && suggestions.length > 0) {
-                displayBatchSuggestions(suggestions, batch);
-            }
+            if (currentOffset < totalRoots && !isGenerationPaused) {
+                // Automatically fetch the next page
+                handleGenerateAll();
+            } else {
+                // All pages are processed or paused
+                isGenerationPaused = true;
+                generateAllButton.textContent = 'Generation Complete';
+                generateAllButton.disabled = true;
+                copyAllButton.classList.remove('hidden');
+                showLoadingIndicator(false, 'batch');
             }
 
         } catch (error) {
             console.error('Batch generation failed:', error);
             showError(error.message);
-        } finally {
+            isGenerationPaused = true;
+            generateAllButton.textContent = 'Start Generation';
             showLoadingIndicator(false, 'batch');
         }
     }
 
     function displayBatchSuggestions(suggestions, batchRoots) {
+        console.log('Displaying suggestions for batch:', batchRoots.map(r => r.sequence));
         const batchContainer = document.createElement('div');
         batchContainer.className = 'batch-result-card';
 
@@ -338,5 +385,15 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         allNamesContainer.appendChild(batchContainer);
         allNamesContainer.scrollTop = allNamesContainer.scrollHeight;
+    }
+
+    function copyAllGeneratedNames() {
+        const namesText = allGeneratedNames.map(s => `${s.name} - ${s.meaning}`).join('\n');
+        navigator.clipboard.writeText(namesText).then(() => {
+            alert('All generated names copied to clipboard!');
+        }, (err) => {
+            console.error('Could not copy text: ', err);
+            alert('Failed to copy names.');
+        });
     }
 });

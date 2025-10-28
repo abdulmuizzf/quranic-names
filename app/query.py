@@ -74,13 +74,12 @@ def get_similar_words(db: Session, query_embedding: np.ndarray, limit: int = 10,
     return result_list
 
 
-def get_all_root_words(db: Session) -> list[schema.RootWordInfo]:
+def get_all_root_words(db: Session, skip: int = 0, limit: int = 10) -> (list[schema.RootWordInfo], int):
     """
-    Retrieves a list of all unique Quranic root words from the database,
+    Retrieves a paginated list of all unique Quranic root words from the database,
     including one example transliteration and english text for each.
     """
-    # To ensure we get exactly one transliteration per sequence, we first
-    # find the ID of the first word associated with each sequence.
+    # Subquery to get the first word ID for each sequence
     first_word_subquery = (
         db.query(
             models.Word.sequence_id,
@@ -90,8 +89,8 @@ def get_all_root_words(db: Session) -> list[schema.RootWordInfo]:
         .subquery()
     )
 
-    # Now, we join Sequence with Category and the specific Word identified above.
-    results = (
+    # Main query to fetch the data
+    base_query = (
         db.query(
             models.Sequence.sequence,
             models.Word.transliteration,
@@ -101,14 +100,24 @@ def get_all_root_words(db: Session) -> list[schema.RootWordInfo]:
         .join(first_word_subquery, models.Sequence.id == first_word_subquery.c.sequence_id)
         .join(models.Word, models.Word.id == first_word_subquery.c.first_word_id)
         .join(models.Category, models.Sequence.category_id == models.Category.id)
+    )
+
+    # Get the total count before applying pagination
+    total = base_query.count()
+
+    # Apply ordering, pagination and execute the query
+    results = (
+        base_query
         .order_by(models.Sequence.sequence)
+        .offset(skip)
+        .limit(limit)
         .all()
     )
 
-    print(f"Retrieved {len(results)} unique root words with details from the database.")
+    print(f"Retrieved {skip + len(results)} of {total} unique root words from the database.")
 
     # Map the raw results to the Pydantic schema
-    return [
+    root_words_data = [
         schema.RootWordInfo(
             sequence=row.sequence,
             transliteration=row.transliteration,
@@ -116,3 +125,5 @@ def get_all_root_words(db: Session) -> list[schema.RootWordInfo]:
             english_text=row.english_text
         ) for row in results
     ]
+    
+    return root_words_data, total

@@ -435,6 +435,8 @@ header p {
     margin-bottom: 1.5rem;
     display: flex;
     justify-content: center;
+    gap: 1rem;
+    align-items: center;
 }
 
 .action-button {
@@ -453,6 +455,36 @@ header p {
     background-color: #218838;
 }
 
+.secondary-action {
+    background-color: #6c757d;
+}
+
+.secondary-action:hover {
+    background-color: #5a6268;
+}
+
+.icon-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.icon-button:hover {
+    background-color: #e9ecef;
+}
+
+.icon-button svg {
+    width: 24px;
+    height: 24px;
+    stroke: #6c757d;
+}
+
 #all-names-container {
     margin-top: 1.5rem;
     max-height: 500px; /* Or as desired */
@@ -465,4 +497,35 @@ header p {
     height: 1px;
     background-color: var(--card-border);
     margin: 2rem 0;
+}
+
+.batch-result-card {
+    background-color: var(--card-background);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 6px var(--shadow-color);
+}
+
+.batch-header h4 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+}
+
+.root-word-tag {
+    display: inline-block;
+    background-color: #e9ecef;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    margin-right: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.batch-suggestions {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
 }

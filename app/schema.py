@@ -68,6 +68,7 @@ class RootWordInfo(BaseModel):
 
 class AllRootWordsResponse(BaseModel):
     root_words: List[RootWordInfo]
+    total: int
 
 
 class GenerateNamesRequest(BaseModel):
