@@ -61,7 +61,7 @@ async def chat_with_ai(
 
     try:
         roots = _find_quranic_roots_by_meaning(request.query, db)
-        suggestions = _generate_names_from_roots(request.query, roots)
+        suggestions, _ = _generate_names_from_roots(request.query, roots)
         return schema.ChatResponse(
             session_token=session_token,
             suggestions=suggestions
@@ -84,12 +84,13 @@ def get_root_words(db: Session = Depends(get_db), skip: int = 0, limit: int = 10
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@api_router.post("/generate-names", response_model=List[schema.NameSuggestion])
+@api_router.post("/generate-names", response_model=schema.ChatResponse)
 async def generate_names_from_roots_endpoint(
     request: schema.GenerateNamesRequest,
 ):
     """
-    Generates name suggestions directly from a provided list of root words.
+    Generates name suggestions directly from a provided list of root words,
+    and returns both the suggestions and any roots that were unsuccessful.
     """
     try:
         # Create a descriptive query for the LLM's context.
@@ -99,19 +100,28 @@ async def generate_names_from_roots_endpoint(
         )
         
         # The `_generate_names_from_roots` function expects `RootInfo` objects.
-        # We can map our `RootWordInfo` objects to this, setting a default
-        # score since it's not applicable here.
         root_infos = [
             schema.RootInfo(
                 sequence=rw.sequence,
+                transliteration=rw.transliteration,
                 category=rw.category,
                 english_text=rw.english_text,
                 best_match_score=0.0
             ) for rw in request.root_words
         ]
 
-        suggestions = _generate_names_from_roots(context_query, root_infos)
-        return suggestions
+        suggestions, unsuccessful_roots = _generate_names_from_roots(context_query, root_infos)
+        
+        # We need a session token for the response model, but it's not used
+        # in this flow, so we can generate a dummy one.
+        import uuid
+        session_token = str(uuid.uuid4())
+
+        return schema.ChatResponse(
+            session_token=session_token,
+            suggestions=suggestions,
+            unsuccessful_roots=unsuccessful_roots
+        )
     except Exception as e:
         logging.exception("An error occurred during batch name generation.")
         raise HTTPException(status_code=500, detail=str(e)) from e

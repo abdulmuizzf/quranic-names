@@ -25,13 +25,13 @@ The goal is to generate multiple beautiful, appropriate, and valid Arabic names 
           "name": "SuggestedName1",
           "meaning": "The meaning of the name.",
           "gender": "Male",
-          "quranic_root": "Q-R-N"
-        },
+          "root": "ق ر ن"
+        }
+      ],
+      "unsuccessful_roots": [
         {
-          "name": "SuggestedName2",
-          "meaning": "The meaning of the name.",
-          "gender": "Female",
-          "quranic_root": "A-Y-A"
+            "root": "س ل م",
+            "english_text": "Peace"
         }
       ]
     }
@@ -39,6 +39,7 @@ The goal is to generate multiple beautiful, appropriate, and valid Arabic names 
 
 6.  **SAFETY AND APPROPRIATENESS:** All names must be positive in meaning and appropriate for a child. Avoid names with negative connotations or ambiguous meanings.
 7.  **CREATIVITY AND ACCURACY:** Within these constraints, be creative. If a root allows for multiple beautiful names, suggest more than one.
+8.  **IDENTIFY UNSUCCESSFUL ROOTS:** If you encounter a root word that has a good, positive meaning but you are unable to generate a valid name from it, include it in the `unsuccessful_roots` list in the JSON response.
 
 Adherence to these rules is paramount.
 """
@@ -59,12 +60,13 @@ def build_prompt(user_query: str, search_results: list[dict]) -> str:
     """
     print(f"Response details: {search_results}")
     # Format the search results for inclusion in the prompt
-    results_text = "\n".join(
-        [
-            f"- Root: {res['sequence']}, Category: {res['category']}, Best Meaning: '{res['english_text']}', Match Similarity with User Query: {res['best_match_score']}%"
-            for res in search_results
-        ]
-    )
+    results_list = []
+    for res in search_results:
+        base_text = f"- Root: {res['sequence']}, Category: {res['category']}, Best Meaning: '{res['english_text']}'"
+        if res.get('best_match_score', 0) > 0:
+            base_text += f", Match Similarity with User Query: {res['best_match_score']}%"
+        results_list.append(base_text)
+    results_text = "\n".join(results_list)
 
     prompt = f"""
 User Query: "{user_query}"

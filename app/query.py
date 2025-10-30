@@ -89,6 +89,16 @@ def get_all_root_words(db: Session, skip: int = 0, limit: int = 10) -> (list[sch
         .subquery()
     )
 
+    # Define the list of categories to exclude
+    excluded_categories = [
+        "Coordinating conjunction",
+        "Location adverb",
+        "Nominal",
+        "Particle",
+        "Preposition",
+        "Time adverb",
+    ]
+
     # Main query to fetch the data
     base_query = (
         db.query(
@@ -100,6 +110,7 @@ def get_all_root_words(db: Session, skip: int = 0, limit: int = 10) -> (list[sch
         .join(first_word_subquery, models.Sequence.id == first_word_subquery.c.sequence_id)
         .join(models.Word, models.Word.id == first_word_subquery.c.first_word_id)
         .join(models.Category, models.Sequence.category_id == models.Category.id)
+        .filter(models.Category.name.notin_(excluded_categories))
     )
 
     # Get the total count before applying pagination

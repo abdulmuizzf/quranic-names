@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const generateAllButton = document.getElementById('generateAllButton');
     const allNamesContainer = document.getElementById('all-names-container');
     const copyAllButton = document.getElementById('copyAllButton');
+    const copyUnsuccessfulButton = document.getElementById('copyUnsuccessfulButton');
 
     // Shared
     const loadingIndicator = document.getElementById('loadingIndicator');
@@ -219,7 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="name-suggestion-item">
                 <div class="name-english"><strong>${suggestion.name}</strong></div>
                 <div class="name-meaning">${suggestion.meaning}</div>
-                <div class="name-meta">(Gender: ${suggestion.gender || 'Unspecified'}, Root: ${suggestion.quranic_root})</div>
+                <div class="name-meta">(Gender: ${suggestion.gender || 'Unspecified'}, Root: ${suggestion.root})</div>
             </div>
         `;
     };
@@ -267,9 +268,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Batch Generation
     generateAllButton.addEventListener('click', toggleGeneration);
     copyAllButton.addEventListener('click', copyAllGeneratedNames);
+    copyUnsuccessfulButton.addEventListener('click', copyUnsuccessfulRoots);
 
     // --- State for Batch Generation ---
     let allGeneratedNames = [];
+    let allUnsuccessfulRoots = [];
     let isGenerationPaused = true;
     let currentOffset = 0;
     const pageSize = 10;
@@ -298,6 +301,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentOffset === 0) {
             allNamesContainer.innerHTML = '';
             allGeneratedNames = [];
+            allUnsuccessfulRoots = [];
+            copyUnsuccessfulButton.classList.add('hidden');
         }
 
         try {
@@ -332,13 +337,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     continue;
                 }
 
-                const suggestions = await generateResponse.json();
+                const result = await generateResponse.json();
+                const suggestions = result.suggestions;
+                const unsuccessfulRoots = result.unsuccessful_roots;
 
                 // 4. Store and display the results
+                if (unsuccessfulRoots && unsuccessfulRoots.length > 0) {
+                    allUnsuccessfulRoots.push(...unsuccessfulRoots);
+                }
                 if (suggestions && suggestions.length > 0) {
                     allGeneratedNames.push(...suggestions);
-                    displayBatchSuggestions(suggestions, batch);
                 }
+                // Always display the batch card, even if there are no suggestions
+                displayBatchSuggestions(suggestions, batch, unsuccessfulRoots);
             }
 
             currentOffset += pageSize;
@@ -352,6 +363,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 generateAllButton.textContent = 'Generation Complete';
                 generateAllButton.disabled = true;
                 copyAllButton.classList.remove('hidden');
+                if (allUnsuccessfulRoots.length > 0) {
+                    copyUnsuccessfulButton.classList.remove('hidden');
+                }
                 showLoadingIndicator(false, 'batch');
             }
 
@@ -364,8 +378,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function displayBatchSuggestions(suggestions, batchRoots) {
-        console.log('Displaying suggestions for batch:', batchRoots.map(r => r.sequence));
+    function displayBatchSuggestions(suggestions, batchRoots, unsuccessfulRoots) {
+        allNamesContainer.classList.remove('hidden');
         const batchContainer = document.createElement('div');
         batchContainer.className = 'batch-result-card';
 
@@ -374,14 +388,25 @@ document.addEventListener('DOMContentLoaded', () => {
         ).join(' ');
 
         let suggestionsHtml = suggestions.map(createNameCard).join('');
+        
+        let unsuccessfulHtml = '';
+        if (unsuccessfulRoots && unsuccessfulRoots.length > 0) {
+            unsuccessfulHtml = `
+                <div class="unsuccessful-roots">
+                    <h5>Roots with no name suggestions:</h5>
+                    ${unsuccessfulRoots.map(root => `<div class="unsuccessful-item"><strong>${root.sequence}:</strong> ${root.english_text}</div>`).join('')}
+                </div>
+            `;
+        }
 
         batchContainer.innerHTML = `
             <div class="batch-header">
                 <h4>Names from Roots: ${rootWordsHtml}</h4>
             </div>
             <div class="batch-suggestions">
-                ${suggestionsHtml}
+                ${suggestionsHtml || '<p>No names were generated for this batch.</p>'}
             </div>
+            ${unsuccessfulHtml}
         `;
         allNamesContainer.appendChild(batchContainer);
         allNamesContainer.scrollTop = allNamesContainer.scrollHeight;
@@ -394,6 +419,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }, (err) => {
             console.error('Could not copy text: ', err);
             alert('Failed to copy names.');
+        });
+    }
+
+    function copyUnsuccessfulRoots() {
+        const rootsText = allUnsuccessfulRoots.map(r => `${r.sequence} - ${r.english_text}`).join('\n');
+        navigator.clipboard.writeText(rootsText).then(() => {
+            alert('All unsuccessful roots copied to clipboard!');
+        }, (err) => {
+            console.error('Could not copy text: ', err);
+            alert('Failed to copy roots.');
         });
     }
 });
