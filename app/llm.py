@@ -45,9 +45,16 @@ def call_llm_with_retry(
         LLMException: If the API call fails after all retries or if the
                       response is not valid JSON.
     """
+    generation_config = genai.types.GenerationConfig(
+        temperature=0.2,  # Lower temperature for more predictable output
+        top_p=0.9,
+        top_k=20
+    )
+
     model = genai.GenerativeModel(
         model_name='gemini-2.5-pro',
-        system_instruction=system_prompt
+        system_instruction=system_prompt,
+        generation_config=generation_config
     )
 
     for attempt in range(max_retries):

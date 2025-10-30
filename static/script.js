@@ -216,11 +216,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const createNameCard = (suggestion) => {
         // This function creates the HTML for a single name suggestion item.
+        const rootInfo = suggestion.root ? `, Root: ${suggestion.root}` : '';
         return `
             <div class="name-suggestion-item">
                 <div class="name-english"><strong>${suggestion.name}</strong></div>
                 <div class="name-meaning">${suggestion.meaning}</div>
-                <div class="name-meta">(Gender: ${suggestion.gender || 'Unspecified'}, Root: ${suggestion.root})</div>
+                <div class="name-meta">(Gender: ${suggestion.gender || 'Unspecified'}${rootInfo})</div>
             </div>
         `;
     };
@@ -413,9 +414,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function copyAllGeneratedNames() {
-        const namesText = allGeneratedNames.map(s => `${s.name} - ${s.meaning}`).join('\n');
-        navigator.clipboard.writeText(namesText).then(() => {
-            alert('All generated names copied to clipboard!');
+        const namesJson = JSON.stringify(allGeneratedNames, null, 2);
+        navigator.clipboard.writeText(namesJson).then(() => {
+            alert('All generated names copied to clipboard as JSON!');
         }, (err) => {
             console.error('Could not copy text: ', err);
             alert('Failed to copy names.');

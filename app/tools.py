@@ -50,24 +50,26 @@ def _generate_names_from_roots(user_query: str, roots: List[schema.RootInfo]) ->
     Internal logic to generate name suggestions from roots using an LLM.
     Returns both the suggestions and a list of roots that were unsuccessful.
     """
+    print(f"Roots provided for name generation: {roots}")
     if not roots:
         return [], []
 
     results_for_prompt = [root.model_dump() for root in roots]
     user_prompt = prompts.build_prompt(user_query, results_for_prompt)
 
-    llm_response = {'suggestions': [{'name': 'Noor', 'meaning': 'Light, radiance, illumination. A name mentioned frequently in the Quran.', 'gender': 'Unisex', 'root': 'ن و ر'}, {'name': 'Anwar', 'meaning': 'Brighter, more luminous, a collection of lights.', 'gender': 'Male', 'root': 'ن و ر'}, {'name': 'Munir', 'meaning': 'One who illuminates or sheds light; brilliant, shining.', 'gender': 'Male', 'root': 'ن و ر'}, {'name': 'Nawwar', 'meaning': 'Extremely luminous, full of light.', 'gender': 'Male', 'root': 'ن و ر'}, {'name': 'Nura', 'meaning': 'A single emanation of light.', 'gender': 'Female', 'root': 'ن و ر'}, {'name': 'Munira', 'meaning': 'Feminine of Munir; one who illuminates, brilliant, shining.', 'gender': 'Female', 'root': 'ن و ر'}, {'name': 'Manar', 'meaning': 'A source of light, lighthouse.', 'gender': 'Female', 'root': 'ن و ر'}, {'name': 'Diya', 'meaning': 'Glow, splendor, radiance. Often refers to a powerful, intrinsic light like the sun.', 'gender': 'Unisex', 'root': 'ض و أ'}, {'name': 'Duha', 'meaning': 'The morning light, the forenoon. The name of the 93rd chapter of the Quran.', 'gender': 'Female', 'root': 'ض و أ'}], 'unsuccessful_roots': [{'root': 'خ ف ف', 'english_text': 'light'}]}
-    # llm_response = llm.call_llm_with_retry(prompts.SYSTEM_PROMPT, user_prompt)
+    # llm_response = {'suggestions': [{'name': 'Adam', 'meaning': "The first prophet and father of humankind. The name signifies 'one from the earth'.", 'gender': 'Male', 'root': 'آدَم'}, {'name': 'Bariq', 'meaning': "Shining, bright, or glittering. Derived from the root of 'Abareeq' (shining jugs).", 'gender': 'Male', 'root': 'أَبَارِيق'}, {'name': 'Buraq', 'meaning': 'Brilliant and shining intensely. Also the name of the celestial creature that carried the Prophet (PBUH) during the Night Journey.', 'gender': 'Male', 'root': 'أَبَارِيق'}, {'name': 'Bariqah', 'meaning': 'The feminine form of Bariq, meaning a shining or bright woman.', 'gender': 'Female', 'root': 'أَبَارِيق'}], 'other_root_words_with_good_meaning': [{'root': 'أ ب ب', 'meaning': 'Grass or pasture; refers to growth and nature.'}]}
+    llm_response = llm.call_llm_with_retry(prompts.SYSTEM_PROMPT, user_prompt)
     print(f"LLM response: {llm_response}")
 
     suggestions_data = llm_response.get("suggestions", [])
     validated_suggestions = [schema.NameSuggestion(**s) for s in suggestions_data]
     
-    unsuccessful_roots_data = llm_response.get("unsuccessful_roots", [])
+    unsuccessful_roots_data = llm_response.get("other_root_words_with_good_meaning", [])
     unsuccessful_roots = []
     for un_root in unsuccessful_roots_data:
         # The LLM returns 'root', so we match on that
         root_sequence = un_root.get('root')
+        meaning = un_root.get('meaning', '')
         for root_info in roots:
             if root_info.sequence == root_sequence:
                 unsuccessful_roots.append(
@@ -75,7 +77,7 @@ def _generate_names_from_roots(user_query: str, roots: List[schema.RootInfo]) ->
                         sequence=root_info.sequence,
                         transliteration=root_info.transliteration,
                         category=root_info.category,
-                        english_text=root_info.english_text
+                        english_text=meaning or root_info.english_text
                     )
                 )
                 break
@@ -102,4 +104,4 @@ def generate_names_from_roots(user_query: str, roots: List[schema.RootInfo]) -> 
     Given a list of Quranic roots, uses a Large Language Model to generate
     valid and appropriate name suggestions relevant to the user's original query.
     """
-    return _generate_names_from_roots(user_query, roots)
+    return _generate_names_from_roots(user_query, roots)[0]

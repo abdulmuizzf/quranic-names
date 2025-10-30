@@ -41,7 +41,7 @@ class NameSuggestion(BaseModel):
     name: str
     meaning: str
     gender: str | None = None
-    root: str
+    root: str | None = None
 
     class Config:
         from_attributes = True
