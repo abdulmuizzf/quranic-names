@@ -89,8 +89,10 @@ The next step is to implement the advanced personalization features outlined in 
 
 A new feature has been implemented to allow users to generate names from all ~790 Quranic root words in the database without needing to perform a semantic search.
 
-*   **Backend:** A new `/api/root-words` endpoint was created to efficiently serve a complete list of all root words, including an example transliteration and meaning for each.
-*   **Frontend:** The "Generate Quranic Names" tab now includes a "Generate All Names" button. This feature fetches all root words and processes them in small, manageable batches, calling the AI to generate name suggestions for each batch and displaying the results progressively.
+*   **Backend:** A new `/api/root-words` endpoint was created to efficiently serve a complete list of all root words, including an example transliteration and meaning for each. The endpoint now supports pagination to handle the large number of root words. The backend has also been updated to filter out grammatical categories that are unlikely to produce meaningful names.
+*   **Frontend:** A new "Batch Generate" tab has been added to the UI. This feature fetches all root words in pages and processes them in small, manageable batches, calling the AI to generate name suggestions for each batch and displaying the results progressively. The generation process can be paused and resumed, and the results will persist. A copy icon allows you to copy all generated names to your clipboard at any time, and a separate icon allows you to copy the list of unsuccessful roots. The frontend now also displays the root words that did not yield any name suggestions.
+*   **Developer Tools:** A script named `get_categories.py` has been created to allow the developer to query and analyze the categories in the database.
+*   **Prompt Engineering:** The system prompt has been updated to use Arabic script for the example root words and to standardize the key used for the root sequence in the JSON output.
 
 The developer has instructed the AI assistant to **wait for an explicit command** before starting the implementation of the next phase.
 

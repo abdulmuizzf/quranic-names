@@ -100,14 +100,22 @@ This module contains the templates and logic for constructing the prompts sent t
 **Status:** This feature is complete.
 
 1.  **Backend Endpoint (`app/api.py`):**
-    *   A new GET endpoint, `/api/root-words`, was created.
-    *   It uses a new database function, `get_all_root_words` (in `app/query.py`), to efficiently fetch all ~790 unique root words with an associated transliteration and meaning.
-    *   A new Pydantic schema, `AllRootWordsResponse`, was created to define the response structure.
+    *   A new GET endpoint, `/api/root-words`, was created, with pagination support.
+    *   The endpoint was updated to filter out grammatical categories.
+    *   A new POST endpoint, `/api/generate-names`, was created to handle batch generation requests.
+    *   The backend now returns a list of unsuccessful roots from the LLM.
 
 2.  **Frontend Implementation (`static/`):**
-    *   A "Generate All Names" button and a dedicated results container were added to the "Generate Quranic Names" tab in `index.html`.
-    *   New CSS styles were added in `style.css` for these elements.
-    *   The core logic in `script.js` fetches all root words and processes them in batches of 5. For each batch, it calls the `/api/chat` endpoint and renders the suggestions progressively.
+    *   A new "Batch Generate" tab was added to the UI.
+    *   The frontend now fetches root words in pages and handles the batch generation process with pause/resume functionality.
+    *   The UI now displays unsuccessful roots.
+    *   Copy buttons for both successful and unsuccessful results have been added.
+
+3.  **Developer Tools:**
+    *   A script, `get_categories.py`, was created to query and analyze database categories.
+
+4.  **Prompt Engineering:**
+    *   The system prompt was updated to request unsuccessful roots and use Arabic script for examples.
 
 ---
 
