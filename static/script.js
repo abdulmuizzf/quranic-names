@@ -1,7 +1,7 @@
 // Function to generate correct morphology URL from verse reference
 const generateMorphologyUrl = (verseRef) => {
-    // Extract chapter and verse numbers from the reference (e.g., "2:255" -> [2, 255])
-    const [chapter, verse] = verseRef.split(':').map(num => parseInt(num));
+    // References look like "(2:255:3)": chapter, verse, word position
+    const [chapter, verse] = verseRef.replace(/[()]/g, '').split(':').map(num => parseInt(num, 10));
     return `https://corpus.quran.com/wordbyword.jsp?chapter=${chapter}&verse=${verse}`;
 };
 
