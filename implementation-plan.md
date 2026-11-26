@@ -1,8 +1,6 @@
 # Implementation Plan: LLM-Powered Quranic Name Suggester
 
-**Directive:** Do not proceed with any step in this plan until explicitly instructed to do so.
-
-This document outlines the step-by-step process for implementing the architecture defined in `app/claude-arch-plan.md`.
+This document outlines the step-by-step implementation of the app, phase by phase.
 
 ---
 

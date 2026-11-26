@@ -57,7 +57,6 @@ def _generate_names_from_roots(user_query: str, roots: List[schema.RootInfo]) ->
     results_for_prompt = [root.model_dump() for root in roots]
     user_prompt = prompts.build_prompt(user_query, results_for_prompt)
 
-    # llm_response = {'suggestions': [{'name': 'Adam', 'meaning': "The first prophet and father of humankind. The name signifies 'one from the earth'.", 'gender': 'Male', 'root': 'آدَم'}, {'name': 'Bariq', 'meaning': "Shining, bright, or glittering. Derived from the root of 'Abareeq' (shining jugs).", 'gender': 'Male', 'root': 'أَبَارِيق'}, {'name': 'Buraq', 'meaning': 'Brilliant and shining intensely. Also the name of the celestial creature that carried the Prophet (PBUH) during the Night Journey.', 'gender': 'Male', 'root': 'أَبَارِيق'}, {'name': 'Bariqah', 'meaning': 'The feminine form of Bariq, meaning a shining or bright woman.', 'gender': 'Female', 'root': 'أَبَارِيق'}], 'other_root_words_with_good_meaning': [{'root': 'أ ب ب', 'meaning': 'Grass or pasture; refers to growth and nature.'}]}
     llm_response = llm.call_llm_with_retry(prompts.SYSTEM_PROMPT, user_prompt)
     print(f"LLM response: {llm_response}")
 

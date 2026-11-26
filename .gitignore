@@ -207,3 +207,11 @@ marimo/_lsp/
 __marimo__/
 
 data/*
+
+# Editor settings
+.vscode/
+
+# Generated output
+category_details.txt
+app/allnames.json
+app/test.json
