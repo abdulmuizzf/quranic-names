@@ -96,7 +96,7 @@ class QuranLetterExtractor:
     def extract_all_data(self, writer):
         """Extract all data and save to a CSV file"""
         letters = self.get_all_first_letters()
-        for letter, letter_href in letters[10:]:
+        for letter, letter_href in letters:
             try:
                 sequences = self.get_letter_sequences(letter_href)
                 for sequence_text, sequence_value in sequences:
