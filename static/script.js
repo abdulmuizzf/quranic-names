@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let sessionToken = null; // To hold the session token for the chat
 
     // --- API Configuration ---
-    const API_URL = 'http://127.0.0.1:8000/api';
+    const API_URL = '/api';
 
     // --- Tab Switching Logic ---
     tabs.forEach(tab => {
