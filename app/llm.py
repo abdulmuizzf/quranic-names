@@ -9,19 +9,19 @@ import json
 import google.generativeai as genai
 from typing import Dict, Any
 
-# --- Configuration ---
-# It's crucial to set the GEMINI_API_KEY environment variable.
-API_KEY = os.getenv("GEMINI_API_KEY")
-if not API_KEY:
-    raise ValueError("GEMINI_API_KEY environment variable not set.")
-
-genai.configure(api_key=API_KEY)
-
 # --- LLM Interaction ---
 
 class LLMException(Exception):
     """Custom exception for LLM related errors."""
     pass
+
+
+def _configure():
+    """Reads GEMINI_API_KEY when a call is made, so search works without a key."""
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise LLMException("GEMINI_API_KEY is not set. Add it to .env to generate names.")
+    genai.configure(api_key=api_key)
 
 def call_llm_with_retry(
     system_prompt: str,
@@ -45,6 +45,7 @@ def call_llm_with_retry(
         LLMException: If the API call fails after all retries or if the
                       response is not valid JSON.
     """
+    _configure()
     generation_config = genai.types.GenerationConfig(
         temperature=0.2,  # Lower temperature for more predictable output
         top_p=0.9,
