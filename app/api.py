@@ -61,10 +61,11 @@ async def chat_with_ai(
 
     try:
         roots = _find_quranic_roots_by_meaning(request.query, db)
-        suggestions, _ = _generate_names_from_roots(request.query, roots)
+        suggestions, unsuccessful_roots = _generate_names_from_roots(request.query, roots)
         return schema.ChatResponse(
             session_token=session_token,
-            suggestions=suggestions
+            suggestions=suggestions,
+            unsuccessful_roots=unsuccessful_roots
         )
     except Exception as e:
         logging.exception("An error occurred in the chat endpoint.")

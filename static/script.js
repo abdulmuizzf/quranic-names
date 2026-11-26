@@ -184,6 +184,12 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 displayMessage("I couldn't find any specific name suggestions for that. Could you try a different meaning?", 'ai');
             }
+            if (chatResponse.unsuccessful_roots && chatResponse.unsuccessful_roots.length > 0) {
+                const roots = chatResponse.unsuccessful_roots
+                    .map(root => `<strong>${root.sequence}</strong>: ${root.english_text}`)
+                    .join('<br>');
+                displayMessage(`Roots with a good meaning but no common name:<br>${roots}`, 'ai');
+            }
 
         } catch (error) {
             console.error('Chat failed:', error);
