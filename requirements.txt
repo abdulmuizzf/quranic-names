@@ -10,7 +10,10 @@ torch
 python-dotenv
 sqlalchemy
 pgvector
-psycopg2
 alembic
 google-generativeai
 fastmcp
+# Used by the data scripts in data/ and the repository root
+requests
+beautifulsoup4
+tqdm
