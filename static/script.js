@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const response = await fetch(
-                `${API_URL}/search?q=${encodeURIComponent(query)}&limit=${limit}&min_similarity=${minSimilarity / 100}`
+                `${API_URL}/search?q=${encodeURIComponent(query)}&limit=${limit}&min_similarity=${minSimilarity}`
             );
             
             if (!response.ok) {
@@ -108,8 +108,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             ${word.verse_reference}
                         </a>
                     </td>
-                    <td class="similarity-cell ${getSimilarityClass(word.similarity_score * 100)}">
-                        ${(word.similarity_score * 100).toFixed(0)}%
+                    <td class="similarity-cell ${getSimilarityClass(word.similarity_score)}">
+                        ${word.similarity_score.toFixed(0)}%
                     </td>
                 </tr>
             `).join('');
@@ -120,7 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="meta">
                         <span>Letter: ${result.letter}</span>
                         <span>Category: ${result.category}</span>
-                        <span class="similarity">Best Match: ${(result.best_match_score * 100).toFixed(0)}%</span>
+                        <span class="similarity">Best Match: ${result.best_match_score.toFixed(0)}%</span>
                     </div>
                 </div>
                 <div class="word-occurrences">
