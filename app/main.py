@@ -15,6 +15,10 @@ MODEL_NAME = "thenlper/gte-large"
 # This is now imported from app.state, but the lifespan function will populate it.
 
 
+# The MCP server as an ASGI app (streamable HTTP), mounted at /mcp below
+mcp_app = mcp.http_app(path="/")
+
+
 # --- FastAPI Lifespan Management (for loading the model) ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -22,7 +26,9 @@ async def lifespan(app: FastAPI):
     print(f"Loading sentence transformer model '{MODEL_NAME}'...")
     model_cache["sentence_transformer"] = SentenceTransformer(MODEL_NAME)
     print("✅ Model loaded successfully.")
-    yield
+    # The MCP server's session manager runs inside the app's lifespan
+    async with mcp_app.lifespan(app):
+        yield
     # Clean up on shutdown
     model_cache.clear()
 
@@ -36,7 +42,7 @@ app = FastAPI(
 )
 
 # Mount the MCP server on the FastAPI app
-app.mount("/mcp", mcp)
+app.mount("/mcp", mcp_app)
 
 # Allow frontend to connect (CORS)
 app.add_middleware(

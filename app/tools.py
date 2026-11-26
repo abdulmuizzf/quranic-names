@@ -3,7 +3,7 @@ This module defines the MCP (Model Context Protocol) server and its tools.
 It encapsulates the core business logic of the application.
 """
 
-from typing import List
+from typing import List, Tuple
 from sqlalchemy.orm import Session
 from fastmcp import FastMCP
 
@@ -45,7 +45,7 @@ def _find_quranic_roots_by_meaning(query_text: str, db: Session) -> List[schema.
     return root_info_list
 
 
-def _generate_names_from_roots(user_query: str, roots: List[schema.RootInfo]) -> (List[schema.NameSuggestion], List[schema.RootWordInfo]):
+def _generate_names_from_roots(user_query: str, roots: List[schema.RootInfo]) -> Tuple[List[schema.NameSuggestion], List[schema.RootWordInfo]]:
     """
     Internal logic to generate name suggestions from roots using an LLM.
     Returns both the suggestions and a list of roots that were unsuccessful.
@@ -99,7 +99,7 @@ def find_quranic_roots_by_meaning(query_text: str) -> List[schema.RootInfo]:
 
 
 @mcp.tool
-def generate_names_from_roots(user_query: str, roots: List[schema.RootInfo]) -> (List[schema.NameSuggestion], List[schema.RootWordInfo]):
+def generate_names_from_roots(user_query: str, roots: List[schema.RootInfo]) -> List[schema.NameSuggestion]:
     """
     Given a list of Quranic roots, uses a Large Language Model to generate
     valid and appropriate name suggestions relevant to the user's original query.
