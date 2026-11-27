@@ -2,7 +2,7 @@
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-green) ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)
 
-Find children's names rooted in the Quran. Describe a meaning in English, and the app finds matching Quranic root words by semantic search, then uses an LLM to derive Arabic names from them.
+Find children's names rooted in the Quran. Most people find a name in arabic that sounds nice and then see if it has a good meaning. This app allows you to enter words in English, finds matching Quranic root words by semantic search, then uses an LLM to derive Arabic names from them.
 
 ![Searching for "patience"](docs/screenshot-search.png)
 
